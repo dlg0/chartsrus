@@ -1,0 +1,36 @@
+{
+  "name": "chartsrus",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "test": "vitest run",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@observablehq/plot": "latest",
+    "@visx/axis": "latest",
+    "@visx/curve": "latest",
+    "@visx/grid": "latest",
+    "@visx/group": "latest",
+    "@visx/scale": "latest",
+    "@visx/shape": "latest",
+    "@vitejs/plugin-react": "latest",
+    "d3": "latest",
+    "html-to-image": "^1.11.13",
+    "react": "latest",
+    "react-dom": "latest",
+    "recharts": "latest"
+  },
+  "devDependencies": {
+    "@types/d3": "latest",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "typescript": "latest",
+    "vite": "latest",
+    "vitest": "latest"
+  }
+}

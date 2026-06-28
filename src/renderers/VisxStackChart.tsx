@@ -1,0 +1,100 @@
+import { curveLinear, curveStepAfter } from '@visx/curve'
+import { GridRows } from '@visx/grid'
+import { Group } from '@visx/group'
+import { scaleLinear } from '@visx/scale'
+import { AreaClosed, Bar } from '@visx/shape'
+import { AxisBottom, AxisLeft } from '@visx/axis'
+import { useMemo } from 'react'
+import { netLineData, targetLineData } from '../chartDerivedData'
+import { visibleYearTicks } from '../chartScales'
+import { colorForKey } from '../colors'
+import { densityTokens } from '../density'
+import { contiguousSignSegments, nearestYearFromX, stackBySign, stackCellAtPoint, stackExtent, yearsFromSpec } from '../stackUtils'
+import type { RendererProps, StackCell } from '../types'
+
+export function VisxStackChart({ spec, chartType, viewMode, showNetLine, showTargets, width, height, inspection, setInspection }: RendererProps) {
+  const tokens = densityTokens[spec.options.density]
+  const margin = tokens.chartMargin
+  const innerWidth = Math.max(1, width - margin.left - margin.right)
+  const innerHeight = Math.max(1, height - margin.top - margin.bottom)
+  const cells = useMemo(() => stackBySign(spec.data, spec.series), [spec])
+  const years = useMemo(() => yearsFromSpec(spec), [spec])
+  const xTicks = useMemo(() => visibleYearTicks(years, width), [width, years])
+  const net = useMemo(() => netLineData(spec.data, spec.series), [spec])
+  const targets = useMemo(() => targetLineData(years, viewMode), [viewMode, years])
+  const [stackMin, stackMax] = stackExtent(cells)
+  const overlayValues = [
+    ...(showNetLine ? net.map((point) => point.net) : []),
+    ...(showTargets ? targets.map((point) => point.target) : []),
+  ]
+  const yMin = Math.min(stackMin, ...overlayValues)
+  const yMax = Math.max(stackMax, ...overlayValues)
+  const xScale = scaleLinear({ domain: [Math.min(...years), Math.max(...years)], range: [0, innerWidth] })
+  const yScale = scaleLinear({ domain: [yMin * 1.05, yMax * 1.05], range: [innerHeight, 0], nice: true })
+  const selectedYear = inspection.pinnedYear ?? inspection.activeYear
+  const bySeries = spec.series.map((series) => ({ series, cells: cells.filter((cell) => cell.key === series.key) }))
+
+  function setFocusFromPointer(clientX: number, clientY: number, rect: DOMRect) {
+    const x = clientX - rect.left - margin.left
+    const y = clientY - rect.top - margin.top
+    const year = nearestYearFromX(x, years, xScale)
+    const cell = stackCellAtPoint(cells, year, y, yScale)
+    setInspection((state) => ({ ...state, activeYear: year, activeSeriesKey: cell?.key ?? null }))
+  }
+
+  const barWidth = Math.max(2, innerWidth / years.length / 2)
+
+  return (
+    <svg width={width} height={height} className="chart-svg">
+      <Group left={margin.left} top={margin.top}>
+        <GridRows scale={yScale} width={innerWidth} stroke="#e7eaf0" numTicks={4} />
+        <line x1={0} x2={innerWidth} y1={yScale(0)} y2={yScale(0)} stroke="#697386" strokeWidth={1} />
+        {chartType === 'area' && bySeries.map(({ series, cells: seriesCells }) => (
+          <g key={series.key} opacity={inspection.activeSeriesKey && inspection.activeSeriesKey !== series.key ? 0.18 : 0.82}>
+            {(['positive', 'negative'] as const).flatMap((sign) => contiguousSignSegments(seriesCells, sign).map((segment, index) => (
+              <AreaClosed<StackCell>
+                key={`${sign}-${index}`}
+                data={segment}
+                yScale={yScale}
+                x={(cell) => xScale(cell.year)}
+                y0={(cell) => yScale(cell.y0)}
+                y1={(cell) => yScale(cell.y1)}
+                defined={(cell) => !cell.isMissing && cell.sign === sign}
+                curve={spec.options.interpolation === 'step' ? curveStepAfter : curveLinear}
+                fill={colorForKey(spec, series.key)}
+                stroke={inspection.activeSeriesKey === series.key ? '#111827' : 'none'}
+                strokeWidth={inspection.activeSeriesKey === series.key ? 1 : 0}
+              />
+            )))}
+          </g>
+        ))}
+        {chartType === 'bar' && cells.filter((cell) => !cell.isMissing && cell.sign !== 'zero').map((cell) => (
+          <rect
+            key={`${cell.key}-${cell.year}`}
+            x={xScale(cell.year) - barWidth / 2}
+            y={Math.min(yScale(cell.y0), yScale(cell.y1))}
+            width={barWidth}
+            height={Math.abs(yScale(cell.y0) - yScale(cell.y1))}
+            fill={colorForKey(spec, cell.key)}
+            opacity={inspection.activeSeriesKey && inspection.activeSeriesKey !== cell.key ? 0.18 : 0.82}
+          />
+        ))}
+        {selectedYear != null && <line className="cursor-line" x1={xScale(selectedYear)} x2={xScale(selectedYear)} y1={0} y2={innerHeight} />}
+        {showTargets && <polyline points={targets.map((point) => `${xScale(point.year)},${yScale(point.target)}`).join(' ')} fill="none" stroke="#7c3aed" strokeWidth={1.4} strokeDasharray="5 4" pointerEvents="none" />}
+        {showNetLine && <polyline points={net.map((point) => `${xScale(point.year)},${yScale(point.net)}`).join(' ')} fill="none" stroke="#111827" strokeWidth={1.5} pointerEvents="none" />}
+        <AxisLeft scale={yScale} tickLabelProps={{ fontSize: tokens.axisFontSize, fill: '#52606d', dx: -3, dy: 3, textAnchor: 'end' }} stroke="#c6ccd6" tickStroke="#c6ccd6" numTicks={4} />
+        <AxisBottom top={innerHeight} scale={xScale} tickValues={xTicks} tickLabelProps={{ fontSize: tokens.axisFontSize, fill: '#52606d', dy: 2, textAnchor: 'middle' }} stroke="#c6ccd6" tickStroke="#c6ccd6" />
+        <Bar
+          x={0}
+          y={0}
+          width={innerWidth}
+          height={innerHeight}
+          fill="transparent"
+          onPointerMove={(event) => setFocusFromPointer(event.clientX, event.clientY, event.currentTarget.ownerSVGElement!.getBoundingClientRect())}
+          onPointerLeave={() => setInspection((state) => ({ ...state, activeSeriesKey: null }))}
+          onClick={() => setInspection((state) => ({ ...state, pinnedYear: state.pinnedYear === state.activeYear ? null : state.activeYear }))}
+        />
+      </Group>
+    </svg>
+  )
+}
