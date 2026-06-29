@@ -78,16 +78,17 @@ Most work, most control. Likely the best long-term fit if charting is central pr
 - `Plotly.react` diffs data and layout in place, so updates do not remove/recreate the chart the way the Observable Plot wrapper does.
 - `uirevision` preserves user zoom and pan across data updates, so hover-driven redraws never reset the view; toggling mode, overlays, density, or series count intentionally changes the revision key and resets the range.
 - Explicit `StackCell` y0/y1 geometry stays the source of truth: each contiguous same-sign segment is one closed `fill: "toself"` polygon, so sign-changing series keep one logical colour and never connect a misleading area across zero. Bars reuse the same geometry through the native `base` (floating-bar) attribute.
-- Native numeric axis, gridlines, and an x spikeline cursor cover the irregular model years and the live hover cursor with very little code.
-- A curated modebar adds genuinely useful native interactivity that does not fight the layout: box zoom, pan, reset, and a 3x PNG export, with the logo and irrelevant lasso/select tools removed.
+- Native numeric axis, gridlines, and an x spikeline that tracks the cursor (`hovermode: "x"`, `spikesnap: "cursor"`) cover the irregular model years and the live cursor with very little code.
+- A curated modebar adds genuinely useful native interactivity that does not fight the layout: box zoom, pan, reset, a 3x PNG export, and three custom buttons - full screen (which expands the whole card with its full legend and inspector), and toggles for the native Plotly tooltip and the native Plotly legend - with the logo and irrelevant lasso/select tools removed.
+- The optional native legend groups each logical series under one `legendgroup` entry, so a legend click hides the whole series (`groupclick: "togglegroup"`) and a double-click isolates it, the standard Plotly behaviour, without splitting on the positive/negative render segments.
 - Visual output is polished by default (antialiased fills, crisp axes) and integrates with the card-level `html-to-image` export as well as Plotly's own `toImage`.
 
 ### What was awkward
 
 - Like Observable Plot, the chart is embedded imperatively through a ref and effects rather than as declarative React children.
-- Plotly's defaults assume Plotly owns the legend and a floating hover label. Both are deliberately disabled here so the shared compact legend and docked inspector stay the single legend/inspection system; inspection is driven from Plotly's `plotly_hover`/`plotly_click`/`plotly_unhover` events instead of its tooltip.
-- Hover hit-testing uses Plotly's nearest-point model (`hovermode: "closest"`), which is close to, but not identical to, the explicit cell-at-pointer test the visx and Recharts versions implement.
-- The bundled `@types/plotly.js` lag the runtime on a few core attributes (`base`, `meta`, combined `hoveron`), so a small number of typed casts are needed.
+- Plotly's defaults assume Plotly owns the legend and a floating hover label. Both are off by default so the shared compact legend and docked inspector stay the single legend/inspection system, but each can be switched on from the modebar to show the native behaviour.
+- An earlier version drove inspection from Plotly's `hovermode: "closest"` events, but with `fill: "toself"` polygons the nearest point is the nearest ring vertex, so the cursor jumped erratically. Inspection now uses the renderer's own pointer maths (nearest scaled year, then cell-at-pointer), the same approach as the visx and Recharts versions, and Plotly only draws the cursor spike and the optional native tooltip.
+- The bundled `@types/plotly.js` lag the runtime on the `base` (floating-bar) attribute, so one typed cast is needed.
 
 ### Known limitations
 

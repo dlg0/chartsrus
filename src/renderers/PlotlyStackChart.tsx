@@ -1,31 +1,36 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Plotly from 'plotly.js-basic-dist-min'
-import type { Config, Data, Layout, PlotMouseEvent, PlotlyHTMLElement } from 'plotly.js'
+import type { Config, Data, Layout } from 'plotly.js'
 import { netLineData, targetLineData } from '../chartDerivedData'
 import { visibleYearTicks } from '../chartScales'
 import { colorForKey } from '../colors'
 import { densityTokens } from '../density'
 import { bandRing } from '../plotlyBands'
-import { contiguousSignSegments, stackBySign, stackExtent, yearsFromSpec } from '../stackUtils'
+import { contiguousSignSegments, nearestYearFromX, stackBySign, stackCellAtPoint, stackExtent, yearsFromSpec } from '../stackUtils'
 import type { RendererProps } from '../types'
 
 const ACTIVE_OPACITY = 0.85
 const DIMMED_OPACITY = 0.18
 
-// Plotly renderer. Like the Observable Plot version it embeds a non-React chart through a ref,
-// but it leans on Plotly.react for diffed updates, native axes/grid/spikeline, uirevision to keep
-// user zoom across updates, and Plotly's event stream to drive the shared docked inspector. The
-// explicit StackCell y0/y1 geometry stays the source of truth: each contiguous same-sign segment
-// is one closed fill: 'toself' polygon, so sign-changing series keep one colour and never draw a
-// misleading area across zero.
+// 24x24 filled glyphs for the custom modebar buttons (Material-style, y-down like SVG).
+const FULLSCREEN_ICON = { width: 24, height: 24, path: 'M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z' }
+const TOOLTIP_ICON = { width: 24, height: 24, path: 'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z' }
+const LEGEND_ICON = { width: 24, height: 24, path: 'M3 6h4v2H3V6zm6 0h12v2H9V6zM3 11h4v2H3v-2zm6 0h12v2H9v-2zM3 16h4v2H3v-2zm6 0h12v2H9v-2z' }
+
+// Plotly renderer. Like the Observable Plot version it embeds a non-React chart through a ref and
+// drives the shared docked inspector from its own pointer maths (stable nearest-year + cell-at-point),
+// while Plotly owns the rendering: diffed Plotly.react updates, native grid/axes, an x spikeline that
+// tracks the cursor, uirevision to keep zoom, and custom modebar buttons. The explicit StackCell
+// y0/y1 geometry stays the source of truth: each contiguous same-sign segment is one closed
+// fill: 'toself' polygon, so sign-changing series keep one colour and never draw an area across zero.
 export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showTargets, width, height, inspection, setInspection }: RendererProps) {
   const ref = useRef<HTMLDivElement | null>(null)
   const readyRef = useRef(false)
+  const [showNativeTooltip, setShowNativeTooltip] = useState(false)
+  const [showNativeLegend, setShowNativeLegend] = useState(false)
   const tokens = densityTokens[spec.options.density]
   const cells = useMemo(() => stackBySign(spec.data, spec.series), [spec])
   const years = useMemo(() => yearsFromSpec(spec), [spec])
-  const yearsRef = useRef(years)
-  yearsRef.current = years
   const xTicks = useMemo(() => visibleYearTicks(years, width), [width, years])
   const net = useMemo(() => netLineData(spec.data, spec.series), [spec])
   const targets = useMemo(() => targetLineData(years, viewMode), [viewMode, years])
@@ -42,11 +47,14 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
 
   const data = useMemo<Data[]>(() => {
     const opacityFor = (key: string) => (activeKey && activeKey !== key ? DIMMED_OPACITY : ACTIVE_OPACITY)
+    const bandHover = showNativeTooltip ? 'name' : 'none'
+    const overlayHover = showNativeTooltip ? 'y+name' : 'skip'
     const seriesTraces: Data[] = chartType === 'area'
       ? spec.series.flatMap((series) => {
         const color = colorForKey(spec, series.key)
         const seriesCells = cells.filter((cell) => cell.key === series.key)
-        return (['positive', 'negative'] as const).flatMap((sign) => contiguousSignSegments(seriesCells, sign).map((segment) => {
+        const segments = (['positive', 'negative'] as const).flatMap((sign) => contiguousSignSegments(seriesCells, sign))
+        return segments.map((segment, index) => {
           const ring = bandRing(segment, spec.options.interpolation)
           return {
             type: 'scatter',
@@ -57,13 +65,13 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
             fillcolor: color,
             line: { color, width: 0.5 },
             opacity: opacityFor(series.key),
-            hoverinfo: 'none',
-            meta: series.key,
+            hoverinfo: bandHover,
+            legendgroup: series.key,
             name: series.shortLabel,
-            showlegend: false,
-            // meta carries the series key for hit-testing in hover events; the bundled @types lag on it.
+            // One legend entry per logical series; legendgroup makes a legend click toggle every segment.
+            showlegend: showNativeLegend && index === 0,
           } as Data
-        }))
+        })
       })
       : spec.series
         .map((series) => ({ series, barCells: cells.filter((cell) => cell.key === series.key && !cell.isMissing && cell.sign !== 'zero') }))
@@ -76,19 +84,19 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
           width: barWidth,
           marker: { color: colorForKey(spec, series.key), line: { width: 0 } },
           opacity: opacityFor(series.key),
-          hoverinfo: 'none',
-          meta: series.key,
+          hoverinfo: bandHover,
+          legendgroup: series.key,
           name: series.shortLabel,
-          showlegend: false,
+          showlegend: showNativeLegend,
           // base (the floating-bar origin) is a core Plotly bar attribute the bundled @types lag on.
         }) as Data)
 
     const overlays: Data[] = [
-      ...(showTargets ? [{ type: 'scatter', mode: 'lines', x: targets.map((point) => point.year), y: targets.map((point) => point.target), line: { color: '#7c3aed', width: 1.4, dash: 'dash' }, hoverinfo: 'skip', name: 'NDC target', showlegend: false } satisfies Data] : []),
-      ...(showNetLine ? [{ type: 'scatter', mode: 'lines', x: net.map((point) => point.year), y: net.map((point) => point.net), line: { color: '#111827', width: 1.5 }, hoverinfo: 'skip', name: 'Net balance', showlegend: false } satisfies Data] : []),
+      ...(showTargets ? [{ type: 'scatter', mode: 'lines', x: targets.map((point) => point.year), y: targets.map((point) => point.target), line: { color: '#7c3aed', width: 1.4, dash: 'dash' }, hoverinfo: overlayHover, name: 'NDC target', showlegend: showNativeLegend } as Data] : []),
+      ...(showNetLine ? [{ type: 'scatter', mode: 'lines', x: net.map((point) => point.year), y: net.map((point) => point.net), line: { color: '#111827', width: 1.5 }, hoverinfo: overlayHover, name: 'Net balance', showlegend: showNativeLegend } as Data] : []),
     ]
     return [...seriesTraces, ...overlays]
-  }, [activeKey, barWidth, cells, chartType, net, showNetLine, showTargets, spec, targets])
+  }, [activeKey, barWidth, cells, chartType, net, showNativeLegend, showNativeTooltip, showNetLine, showTargets, spec, targets])
 
   const layout = useMemo<Partial<Layout>>(() => {
     const shapes: NonNullable<Layout['shapes']> = [
@@ -104,11 +112,14 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
       font: { size: tokens.axisFontSize, color: '#52606d', family: 'Inter, ui-sans-serif, system-ui, sans-serif' },
       paper_bgcolor: 'rgba(0,0,0,0)',
       plot_bgcolor: 'rgba(0,0,0,0)',
-      showlegend: false,
-      hovermode: 'closest',
+      showlegend: showNativeLegend,
+      legend: { font: { size: tokens.axisFontSize }, groupclick: 'togglegroup' },
+      // 'x' family keeps the cursor monotonic (nearest x), unlike 'closest' which snapped erratically to
+      // the nearest polygon vertex. Unified adds the combined hover box when the tooltip is enabled.
+      hovermode: showNativeTooltip ? 'x unified' : 'x',
       dragmode: 'pan',
       barmode: 'overlay',
-      // Keep pan/zoom state across data updates so hover-driven redraws never reset the view.
+      // Keep pan/zoom and legend visibility toggles across data updates so hover redraws never reset them.
       uirevision: `${chartType}-${viewMode}-${showNetLine}-${showTargets}-${spec.series.length}-${spec.options.interpolation}-${spec.options.density}`,
       xaxis: {
         range: [Math.min(...years), Math.max(...years)],
@@ -121,12 +132,13 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
         ticks: 'outside',
         tickcolor: '#c6ccd6',
         ticklen: 3,
-        showspikes: true,
+        // Own spikeline only when the unified tooltip is off (unified draws its own guide line).
+        showspikes: !showNativeTooltip,
         spikemode: 'across',
         spikethickness: 1,
         spikecolor: '#94a3b8',
         spikedash: 'solid',
-        spikesnap: 'data',
+        spikesnap: 'cursor',
       },
       yaxis: {
         range: [yMin * 1.05, yMax * 1.05],
@@ -140,7 +152,7 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
       },
       shapes,
     }
-  }, [chartType, height, inspection.pinnedYear, showNetLine, showTargets, spec.options.density, spec.options.interpolation, spec.series.length, tokens, viewMode, width, xTicks, yMax, yMin, years])
+  }, [chartType, height, inspection.pinnedYear, showNativeLegend, showNativeTooltip, showNetLine, showTargets, spec.options.density, spec.options.interpolation, spec.series.length, tokens, viewMode, width, xTicks, yMax, yMin, years])
 
   const config = useMemo<Partial<Config>>(() => ({
     displaylogo: false,
@@ -148,6 +160,30 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
     scrollZoom: false,
     displayModeBar: 'hover',
     modeBarButtonsToRemove: ['lasso2d', 'select2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d', 'toggleSpikelines', 'hoverClosestCartesian', 'hoverCompareCartesian'],
+    modeBarButtonsToAdd: [
+      {
+        name: 'fullscreen',
+        title: 'Full screen (keeps the full legend and inspector visible)',
+        icon: FULLSCREEN_ICON,
+        click: (gd: HTMLElement) => {
+          const card = gd.closest('.chart-card')
+          if (document.fullscreenElement) void document.exitFullscreen()
+          else if (card instanceof HTMLElement) void card.requestFullscreen().catch(() => {})
+        },
+      },
+      {
+        name: 'toggle-tooltip',
+        title: 'Toggle the Plotly hover tooltip',
+        icon: TOOLTIP_ICON,
+        click: () => setShowNativeTooltip((value) => !value),
+      },
+      {
+        name: 'toggle-legend',
+        title: 'Toggle the Plotly legend (click to hide a series, double-click to isolate one)',
+        icon: LEGEND_ICON,
+        click: () => setShowNativeLegend((value) => !value),
+      },
+    ],
     toImageButtonOptions: { format: 'png', filename: 'plotly-emissions-stack', scale: 3 },
   }), [])
 
@@ -159,45 +195,37 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
     if (el) void Plotly.react(el, data, layout, config).then(() => { readyRef.current = true }).catch(() => {})
   }, [data, layout, config])
 
-  // Bind events once and own all teardown in a single cleanup so order is deterministic: remove the
-  // listeners first (guarded, since Plotly only adds the emitter once a plot exists), then purge, and
-  // only purge after a draw has resolved so a remount cannot tear down a graph mid-draw. years is read
-  // through a ref so the handlers never need rebinding.
+  // Purge only on unmount, and only once a draw has resolved, so a remount cannot tear down mid-draw.
   useEffect(() => {
-    const el = ref.current as PlotlyHTMLElement | null
-    if (!el) return
-    const snapYear = (value: number) => yearsRef.current.reduce((nearest, year) => (Math.abs(year - value) < Math.abs(nearest - value) ? year : nearest), yearsRef.current[0])
-    const keyOf = (event: PlotMouseEvent) => {
-      const meta = (event.points[0]?.data as { meta?: unknown } | undefined)?.meta
-      return typeof meta === 'string' ? meta : null
-    }
-    const onHover = (event: PlotMouseEvent) => {
-      const point = event.points[0]
-      if (point) setInspection((state) => ({ ...state, activeYear: snapYear(Number(point.x)), activeSeriesKey: keyOf(event) }))
-    }
-    const onUnhover = () => setInspection((state) => ({ ...state, activeSeriesKey: null }))
-    const onClick = (event: PlotMouseEvent) => {
-      const point = event.points[0]
-      if (!point) return
-      const year = snapYear(Number(point.x))
-      setInspection((state) => ({ ...state, activeYear: year, pinnedYear: state.pinnedYear === year ? null : year }))
-    }
-    if (typeof el.on === 'function') {
-      el.on('plotly_hover', onHover)
-      el.on('plotly_unhover', onUnhover)
-      el.on('plotly_click', onClick)
-    }
-    return () => {
-      if (typeof el.removeAllListeners === 'function') {
-        el.removeAllListeners('plotly_hover')
-        el.removeAllListeners('plotly_unhover')
-        el.removeAllListeners('plotly_click')
-      }
-      if (readyRef.current) {
-        try { Plotly.purge(el) } catch { /* graph already torn down */ }
-      }
-    }
-  }, [setInspection])
+    const el = ref.current
+    return () => { if (el && readyRef.current) { try { Plotly.purge(el) } catch { /* already torn down */ } } }
+  }, [])
 
-  return <div className="plotly-wrap" ref={ref} />
+  // Inspection runs off our own pointer maths (nearest scaled year, then cell-at-point), matching the
+  // other renderers, so the docked inspector and highlight stay stable and never chase polygon vertices.
+  function inspect(clientX: number, clientY: number, rect: DOMRect) {
+    const innerLeft = tokens.chartMargin.left
+    const innerRight = width - tokens.chartMargin.right
+    const innerTop = tokens.chartMargin.top
+    const innerBottom = height - tokens.chartMargin.bottom
+    const domainMin = Math.min(...years)
+    const domainMax = Math.max(...years)
+    const xScale = (year: number) => innerLeft + ((year - domainMin) / (domainMax - domainMin)) * (innerRight - innerLeft)
+    const paddedMin = yMin * 1.05
+    const paddedMax = yMax * 1.05
+    const yScale = (value: number) => innerBottom - ((value - paddedMin) / (paddedMax - paddedMin)) * (innerBottom - innerTop)
+    const year = nearestYearFromX(clientX - rect.left, years, xScale)
+    const cell = stackCellAtPoint(cells, year, clientY - rect.top, yScale)
+    setInspection((state) => ({ ...state, activeYear: year, activeSeriesKey: cell?.key ?? null }))
+  }
+
+  return (
+    <div
+      className="plotly-wrap"
+      ref={ref}
+      onPointerMove={(event) => inspect(event.clientX, event.clientY, event.currentTarget.getBoundingClientRect())}
+      onPointerLeave={() => setInspection((state) => ({ ...state, activeSeriesKey: null }))}
+      onClick={() => setInspection((state) => ({ ...state, pinnedYear: state.pinnedYear === state.activeYear ? null : state.activeYear }))}
+    />
+  )
 }
