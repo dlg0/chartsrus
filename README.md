@@ -5,6 +5,7 @@ This is a fresh React + TypeScript + Vite prototype for comparing chart-renderin
 - Recharts
 - Observable Plot embedded in React
 - visx + D3
+- Plotly (partial `plotly.js-basic-dist-min` bundle)
 
 Highcharts is intentionally not included.
 
@@ -74,6 +75,10 @@ Observable Plot has a concise grammar and can render explicit `y0`/`y1` geometry
 ### visx + D3
 
 visx + D3 requires the most code, but it owns scales, axes, paths, hit-testing, cursor, highlights, and explicit diverging stack geometry. It is the reference implementation for maximum control.
+
+### Plotly
+
+Plotly sits between Observable Plot and visx. Like Observable Plot it embeds a non-React chart through a ref, but it uses `Plotly.react` so updates diff in place instead of remove/recreate, and `uirevision` keeps any user zoom across those updates. It still consumes the shared `StackCell` y0/y1 geometry rather than Plotly's own stacking: each contiguous same-sign segment is one closed `fill: "toself"` polygon, so sign-changing series keep one colour and never draw a misleading area across zero. To stay inside the prototype's rules it disables Plotly's own legend and floating hover label (the shared compact legend and docked inspector remain the single legend/inspection system), but it does show off the native parts that do not fight those rules: crisp gridlines and axes, an x spikeline as the live hover cursor, and a curated modebar with zoom/pan/reset and a 3x PNG export. Its main cost is bundle weight: even the partial `plotly.js-basic-dist-min` bundle is much larger than the other renderers.
 
 ## More notes
 

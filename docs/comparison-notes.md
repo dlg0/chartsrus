@@ -70,3 +70,31 @@ Strong grammar for exploratory chart construction and explicit marks. Viable if 
 ### Overall assessment
 
 Most work, most control. Likely the best long-term fit if charting is central product infrastructure and exact geometry/interaction semantics matter.
+
+## Plotly
+
+### What worked
+
+- `Plotly.react` diffs data and layout in place, so updates do not remove/recreate the chart the way the Observable Plot wrapper does.
+- `uirevision` preserves user zoom and pan across data updates, so hover-driven redraws never reset the view; toggling mode, overlays, density, or series count intentionally changes the revision key and resets the range.
+- Explicit `StackCell` y0/y1 geometry stays the source of truth: each contiguous same-sign segment is one closed `fill: "toself"` polygon, so sign-changing series keep one logical colour and never connect a misleading area across zero. Bars reuse the same geometry through the native `base` (floating-bar) attribute.
+- Native numeric axis, gridlines, and an x spikeline cursor cover the irregular model years and the live hover cursor with very little code.
+- A curated modebar adds genuinely useful native interactivity that does not fight the layout: box zoom, pan, reset, and a 3x PNG export, with the logo and irrelevant lasso/select tools removed.
+- Visual output is polished by default (antialiased fills, crisp axes) and integrates with the card-level `html-to-image` export as well as Plotly's own `toImage`.
+
+### What was awkward
+
+- Like Observable Plot, the chart is embedded imperatively through a ref and effects rather than as declarative React children.
+- Plotly's defaults assume Plotly owns the legend and a floating hover label. Both are deliberately disabled here so the shared compact legend and docked inspector stay the single legend/inspection system; inspection is driven from Plotly's `plotly_hover`/`plotly_click`/`plotly_unhover` events instead of its tooltip.
+- Hover hit-testing uses Plotly's nearest-point model (`hovermode: "closest"`), which is close to, but not identical to, the explicit cell-at-pointer test the visx and Recharts versions implement.
+- The bundled `@types/plotly.js` lag the runtime on a few core attributes (`base`, `meta`, combined `hoveron`), so a small number of typed casts are needed.
+
+### Known limitations
+
+- Bundle weight is the real cost: even the partial `plotly.js-basic-dist-min` bundle is far larger than the other renderers and dominates the production build size.
+- Interaction redraws go through `Plotly.react` on the whole figure; at this prototype's series count that is fine, but a production build with many more traces would likely move per-hover highlight and cursor updates to `Plotly.restyle`/`Plotly.relayout` for surgical updates.
+- Enabling zoom/pan means the plotting box can change range on interaction; the prototype keeps a stable default view via the reset control and `uirevision` rather than locking the axes.
+
+### Overall assessment
+
+A strong middle option: less code than visx for axes, grid, cursor, zoom, and export, while still honouring the explicit shared stack geometry and the docked inspection model. The main trade-offs are bundle size and an imperative React wrapper. A good fit when polished, interactive, export-ready charts matter more than minimal bundle size.

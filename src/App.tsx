@@ -2,26 +2,28 @@ import { useMemo, useState } from 'react'
 import { ChartCard } from './components/ChartCard'
 import { specWithOptions } from './fixture'
 import { ObservablePlotStackChart } from './renderers/ObservablePlotStackChart'
+import { PlotlyStackChart } from './renderers/PlotlyStackChart'
 import { RechartsStackChart } from './renderers/RechartsStackChart'
 import { VisxStackChart } from './renderers/VisxStackChart'
 import type { ChartDensity, ChartType, StackChartSpec } from './types'
 
 type ChartColumns = 1 | 2 | 3
 
-const comparisonRows: Array<[string, string, string, string]> = [
-  ['diverging stack correctness', 'acceptable', 'good', 'good'],
-  ['sign-changing series handling', 'acceptable', 'good', 'good'],
-  ['irregular x spacing', 'good', 'good', 'good'],
-  ['dense layout control', 'acceptable', 'good', 'good'],
-  ['custom docked inspector', 'good', 'good', 'good'],
-  ['compact legend/drawer', 'good', 'good', 'good'],
-  ['keyboard inspection', 'good', 'good', 'good'],
-  ['React state integration', 'good', 'awkward', 'good'],
-  ['implementation complexity', 'low', 'medium', 'high'],
-  ['perceived maintainability', 'acceptable', 'acceptable', 'good'],
-  ['performance with 20 series', 'good', 'good', 'good'],
-  ['visual polish', 'acceptable', 'good', 'acceptable'],
-  ['export/screenshot suitability', 'good', 'good', 'good'],
+const comparisonRows: Array<[string, string, string, string, string]> = [
+  ['diverging stack correctness', 'acceptable', 'good', 'good', 'good'],
+  ['sign-changing series handling', 'acceptable', 'good', 'good', 'good'],
+  ['irregular x spacing', 'good', 'good', 'good', 'good'],
+  ['dense layout control', 'acceptable', 'good', 'good', 'good'],
+  ['custom docked inspector', 'good', 'good', 'good', 'good'],
+  ['compact legend/drawer', 'good', 'good', 'good', 'good'],
+  ['keyboard inspection', 'good', 'good', 'good', 'good'],
+  ['React state integration', 'good', 'awkward', 'good', 'good'],
+  ['implementation complexity', 'low', 'medium', 'high', 'medium'],
+  ['perceived maintainability', 'acceptable', 'acceptable', 'good', 'good'],
+  ['performance with 20 series', 'good', 'good', 'good', 'good'],
+  ['visual polish', 'acceptable', 'good', 'acceptable', 'good'],
+  ['native interactivity (zoom/pan/export)', 'acceptable', 'acceptable', 'acceptable', 'good'],
+  ['export/screenshot suitability', 'good', 'good', 'good', 'good'],
 ]
 
 function chartNotes(spec: StackChartSpec) {
@@ -71,12 +73,13 @@ export function App() {
         <ChartCard name="Recharts" spec={spec} chartType={chartType} Renderer={RechartsStackChart} note={`Uses Recharts axes/areas with stackOffset="sign"; explicit shared stack geometry drives domains/inspection, but Recharts owns rendered stack internals. ${chartNotes(spec)}`} />
         <ChartCard name="Observable Plot" spec={spec} chartType={chartType} Renderer={ObservablePlotStackChart} note={`Uses React effect embedding and explicit y0/y1 StackCell geometry. Clean grammar, less native React lifecycle. ${chartNotes(spec)}`} />
         <ChartCard name="visx + D3" spec={spec} chartType={chartType} Renderer={VisxStackChart} note={`Reference-control implementation: explicit y0/y1 paths, transparent hit target, split positive/negative sign-changing segments. ${chartNotes(spec)}`} />
+        <ChartCard name="Plotly" spec={spec} chartType={chartType} Renderer={PlotlyStackChart} note={`Plotly.react draws explicit y0/y1 fill:"toself" bands with native grid, axes, and an x spikeline cursor; events feed the shared inspector, uirevision preserves zoom, and the modebar adds native zoom/pan/reset and a 3x PNG export. ${chartNotes(spec)}`} />
       </div>
       <section className="comparison-panel">
         <h2>Comparison checklist</h2>
         <table>
-          <thead><tr><th>Criterion</th><th>Recharts</th><th>Observable Plot</th><th>visx + D3</th></tr></thead>
-          <tbody>{comparisonRows.map(([criterion, recharts, plot, visx]) => <tr key={criterion}><th>{criterion}</th><td>{recharts}</td><td>{plot}</td><td>{visx}</td></tr>)}</tbody>
+          <thead><tr><th>Criterion</th><th>Recharts</th><th>Observable Plot</th><th>visx + D3</th><th>Plotly</th></tr></thead>
+          <tbody>{comparisonRows.map(([criterion, recharts, plot, visx, plotly]) => <tr key={criterion}><th>{criterion}</th><td>{recharts}</td><td>{plot}</td><td>{visx}</td><td>{plotly}</td></tr>)}</tbody>
         </table>
       </section>
     </main>
