@@ -5,8 +5,8 @@ import { netLineData, targetLineData } from '../chartDerivedData'
 import { visibleYearTicks } from '../chartScales'
 import { colorForKey } from '../colors'
 import { densityTokens } from '../density'
-import { bandRing, signedBands } from '../plotlyBands'
-import { nearestYearFromX, seriesValueExtent, stackBySign, stackCellAtPoint, stackExtent, yearsFromSpec } from '../stackUtils'
+import { bandRing } from '../plotlyBands'
+import { nearestYearFromX, seriesValueExtent, signedBands, stackBySign, stackCellAtPoint, stackExtent, yearsFromSpec } from '../stackUtils'
 import type { RendererProps } from '../types'
 
 const ACTIVE_OPACITY = 0.85
@@ -131,10 +131,12 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
       plot_bgcolor: 'rgba(0,0,0,0)',
       showlegend: showNativeLegend,
       legend: { font: { size: tokens.axisFontSize }, groupclick: 'togglegroup' },
+      // Lighter, less obtrusive modebar icons over the dense plot.
+      modebar: { bgcolor: 'rgba(255,255,255,0)', color: '#b9c0cc', activecolor: '#5b6573' },
       // 'x' family keeps the cursor monotonic (nearest x), unlike 'closest' which snapped erratically to
       // the nearest polygon vertex. Unified adds the combined hover box when the tooltip is enabled.
       hovermode: showNativeTooltip ? 'x unified' : 'x',
-      dragmode: 'pan',
+      dragmode: 'zoom',
       barmode: 'overlay',
       // Keep pan/zoom and legend visibility toggles across data updates so hover redraws never reset them.
       uirevision: `${chartType}-${viewMode}-${showNetLine}-${showTargets}-${spec.series.length}-${spec.options.interpolation}-${spec.options.density}`,
@@ -176,8 +178,9 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
     responsive: false,
     scrollZoom: false,
     displayModeBar: 'hover',
-    // Keep hoverClosestCartesian (the select-nearest toggle); drop the rest of the noise.
-    modeBarButtonsToRemove: ['lasso2d', 'select2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d', 'toggleSpikelines', 'hoverCompareCartesian'],
+    // Keep hoverClosestCartesian (the select-nearest toggle); drop the PNG export (the card has its own
+    // save image / save full) and the rest of the noise.
+    modeBarButtonsToRemove: ['toImage', 'lasso2d', 'select2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d', 'toggleSpikelines', 'hoverCompareCartesian'],
     modeBarButtonsToAdd: [
       {
         name: 'fullscreen',
@@ -202,7 +205,6 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
         click: () => setShowNativeLegend((value) => !value),
       },
     ],
-    toImageButtonOptions: { format: 'png', filename: 'plotly-emissions-stack', scale: 3 },
   }), [])
 
   // Diff the figure in place on every change; readyRef flips true once a draw has resolved so teardown

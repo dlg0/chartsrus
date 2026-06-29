@@ -32,7 +32,7 @@ Good for quick React charts and acceptable for prototypes. Awkward if explicit s
 - Clean chart grammar for explicit `y0`/`y1` cells.
 - Numeric scales and rule marks make irregular years and inspection cursor straightforward.
 - Positive and negative cells can be rendered from the same shared stack transform.
-- Sign-changing series are rendered as contiguous same-sign segments, stacked nearest zero, with one logical colour.
+- Sign-changing series render from the shared `signedBands` geometry as full-width bands that taper to the baseline, stacked nearest zero, with one logical colour and no gap at the crossing.
 
 ### What was awkward
 
@@ -54,7 +54,7 @@ Strong grammar for exploratory chart construction and explicit marks. Viable if 
 
 - Full ownership of scales, axes, grid, paths, cursor, hit-testing, and highlights.
 - Uses the shared `StackCell[]` geometry directly.
-- Sign-changing series are stacked nearest zero, split into positive and negative rendered segments, and preserve one logical series identity and colour for legend and inspection.
+- Sign-changing series are stacked nearest zero as full-width `signedBands` (one band per sign), meet the baseline without a gap, and preserve one logical series identity and colour for legend and inspection.
 - Pointer hit-testing is a transparent overlay using nearest scaled year.
 
 ### What was awkward
@@ -65,7 +65,7 @@ Strong grammar for exploratory chart construction and explicit marks. Viable if 
 ### Known limitations
 
 - The prototype is intentionally compact and not fully production-hardened for export, animation, or very large datasets.
-- Area segmentation is simple; production code may want more deliberate treatment of interpolated zero crossings and gaps.
+- Area geometry now comes from the shared `signedBands` transform (full-width tapered bands), so zero crossings and decay-to-zero no longer leave gaps; production code may still want true interpolated zero-crossing vertices for sub-year precision.
 
 ### Overall assessment
 
@@ -78,11 +78,11 @@ Most work, most control. Likely the best long-term fit if charting is central pr
 - `Plotly.react` diffs data and layout in place, so updates do not remove/recreate the chart the way the Observable Plot wrapper does.
 - `uirevision` preserves user zoom and pan across data updates, so hover-driven redraws never reset the view; toggling mode, overlays, density, or series count intentionally changes the revision key and resets the range.
 - Explicit `StackCell` y0/y1 geometry stays the source of truth: each series is one closed `fill: "toself"` polygon per sign, so sign-changing series keep one logical colour and never connect a misleading area across zero. Bars reuse the same geometry through the native `base` (floating-bar) attribute.
-- Area bands span the full year grid and taper to zero thickness at the running base, so neighbours tile edge-to-edge and sign-changing series (and series that decay to zero) meet the baseline cleanly. This avoids the triangular white gaps that the simpler per-segment approach leaves at sign changes; the other renderers in this prototype still use the per-segment split.
+- Area bands span the full year grid and taper to zero thickness at the running base, so neighbours tile edge-to-edge and sign-changing series (and series that decay to zero) meet the baseline cleanly, with no triangular white gaps at sign changes. This is the shared `signedBands` transform: it is now the source of truth for every renderer's diverging areas - visx and Observable Plot render it directly, and Recharts gets the same continuous taper by feeding its sign-split areas zero (not null) off-sign values.
 - Native numeric axis, gridlines, and an x spikeline that tracks the cursor (`hovermode: "x"`, `spikesnap: "cursor"`) cover the irregular model years and the live cursor with very little code.
-- A curated modebar adds genuinely useful native interactivity that does not fight the layout: box zoom, pan, reset, the select-nearest hover toggle, a 3x PNG export, and three custom buttons - full screen (which expands the whole card with its full legend and inspector), and toggles for the native Plotly tooltip and the native Plotly legend - with the logo and irrelevant lasso/box-select tools removed.
+- A deliberately light modebar adds native interactivity that does not fight the layout: box zoom (the default drag mode), pan, reset, the select-nearest hover toggle, and three custom buttons - full screen (which expands the whole card with its full legend and inspector), and toggles for the native Plotly tooltip and the native Plotly legend. The logo, the PNG export (the card has its own save image / save full), and the lasso/box-select tools are removed, and the icons are lightened so they sit quietly over the dense plot.
 - The shared area/bar/line chart types all render: areas as tiled diverging bands, bars as floating `base` rectangles, and lines as one unstacked trace per series scaled to the per-series value extent.
-- The optional native legend groups each logical series under one `legendgroup` entry, so a legend click hides the whole series (`groupclick: "togglegroup"`) and a double-click isolates it, the standard Plotly behaviour, without splitting on the positive/negative render segments.
+- The optional native legend groups each logical series under one `legendgroup` entry, so a legend click hides the whole series (`groupclick: "togglegroup"`) and a double-click isolates it, the standard Plotly behaviour, without splitting on the positive/negative render bands.
 - Visual output is polished by default (antialiased fills, crisp axes) and integrates with the card-level `html-to-image` export as well as Plotly's own `toImage`.
 
 ### What was awkward

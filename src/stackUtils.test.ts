@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getSlice, middleTruncate, nearestYearFromX, rankSeriesByImportance, stackBySign, stackCellAtPoint } from './stackUtils'
+import { getSlice, middleTruncate, nearestYearFromX, rankSeriesByImportance, signedBands, stackBySign, stackCellAtPoint } from './stackUtils'
 import type { StackChartSpec, StackDatum, StackSeriesMeta } from './types'
 
 const series: StackSeriesMeta[] = [
@@ -73,5 +73,42 @@ describe('stack utilities', () => {
 
   it('middle truncates while preserving start and end', () => {
     expect(middleTruncate('Electricity generation utility solar photovoltaic', 18)).toBe('Electrici…ovoltaic')
+  })
+})
+
+describe('signedBands', () => {
+  const bandSeries: StackSeriesMeta[] = [
+    { key: 'a', label: 'A', shortLabel: 'A' },
+    { key: 'b', label: 'B', shortLabel: 'B' },
+    { key: 'c', label: 'C', shortLabel: 'C' },
+  ]
+  const bandRows: StackDatum[] = [
+    { year: 2025, a: -2, b: 10, c: -3 },
+    { year: 2030, a: 4, b: 8, c: -5 },
+  ]
+  const bands = signedBands(bandRows, bandSeries)
+  const band = (key: string, sign: 'positive' | 'negative') => bands.find((item) => item.key === key && item.sign === sign)
+
+  it('emits one band per sign that a series actually occupies', () => {
+    expect(band('a', 'positive')).toBeDefined() // a is sign-changing: both signs
+    expect(band('a', 'negative')).toBeDefined()
+    expect(band('b', 'negative')).toBeUndefined() // b is purely positive
+    expect(band('c', 'positive')).toBeUndefined()
+  })
+
+  it('spans every year so bands tile without per-segment gaps', () => {
+    expect(band('a', 'positive')?.points.map((point) => point.year)).toEqual([2025, 2030])
+  })
+
+  it('stacks neighbours edge-to-edge: a lower band top equals the next band base', () => {
+    // a is stacked nearest zero, so b sits directly on top of a on the positive side.
+    expect(band('a', 'positive')?.points[1]).toMatchObject({ year: 2030, y0: 0, y1: 4 })
+    expect(band('b', 'positive')?.points[1]).toMatchObject({ year: 2030, y0: 4, y1: 12 })
+  })
+
+  it('collapses to zero thickness at the baseline where a series changes sign', () => {
+    // a is negative in 2025 (so its positive band is flat on zero) and positive in 2030 (negative flat).
+    expect(band('a', 'positive')?.points[0]).toMatchObject({ year: 2025, y0: 0, y1: 0 })
+    expect(band('a', 'negative')?.points[1]).toMatchObject({ year: 2030, y0: 0, y1: 0 })
   })
 })

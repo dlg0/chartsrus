@@ -9,8 +9,9 @@ import { netLineData, targetLineData } from '../chartDerivedData'
 import { visibleYearTicks } from '../chartScales'
 import { colorForKey } from '../colors'
 import { densityTokens } from '../density'
-import { contiguousSignSegments, nearestYearFromX, seriesValueExtent, stackBySign, stackCellAtPoint, stackExtent, yearsFromSpec } from '../stackUtils'
-import type { RendererProps, StackCell, StackDatum } from '../types'
+import { nearestYearFromX, seriesValueExtent, signedBands, stackBySign, stackCellAtPoint, stackExtent, yearsFromSpec } from '../stackUtils'
+import type { BandPoint } from '../stackUtils'
+import type { RendererProps, StackDatum } from '../types'
 
 export function VisxStackChart({ spec, chartType, viewMode, showNetLine, showTargets, width, height, inspection, setInspection }: RendererProps) {
   const tokens = densityTokens[spec.options.density]
@@ -34,7 +35,6 @@ export function VisxStackChart({ spec, chartType, viewMode, showNetLine, showTar
   const xScale = scaleLinear({ domain: [Math.min(...years), Math.max(...years)], range: [0, innerWidth] })
   const yScale = scaleLinear({ domain: [yMin * 1.05, yMax * 1.05], range: [innerHeight, 0], nice: true })
   const selectedYear = inspection.pinnedYear ?? inspection.activeYear
-  const bySeries = spec.series.map((series) => ({ series, cells: cells.filter((cell) => cell.key === series.key) }))
 
   function setFocusFromPointer(clientX: number, clientY: number, rect: DOMRect) {
     const x = clientX - rect.left - margin.left
@@ -51,24 +51,20 @@ export function VisxStackChart({ spec, chartType, viewMode, showNetLine, showTar
       <Group left={margin.left} top={margin.top}>
         <GridRows scale={yScale} width={innerWidth} stroke="#e7eaf0" numTicks={4} />
         <line x1={0} x2={innerWidth} y1={yScale(0)} y2={yScale(0)} stroke="#697386" strokeWidth={1} />
-        {chartType === 'area' && bySeries.map(({ series, cells: seriesCells }) => (
-          <g key={series.key} opacity={inspection.activeSeriesKey && inspection.activeSeriesKey !== series.key ? 0.18 : 0.82}>
-            {(['positive', 'negative'] as const).flatMap((sign) => contiguousSignSegments(seriesCells, sign).map((segment, index) => (
-              <AreaClosed<StackCell>
-                key={`${sign}-${index}`}
-                data={segment}
-                yScale={yScale}
-                x={(cell) => xScale(cell.year)}
-                y0={(cell) => yScale(cell.y0)}
-                y1={(cell) => yScale(cell.y1)}
-                defined={(cell) => !cell.isMissing && cell.sign === sign}
-                curve={spec.options.interpolation === 'step' ? curveStepAfter : curveLinear}
-                fill={colorForKey(spec, series.key)}
-                stroke={inspection.activeSeriesKey === series.key ? '#111827' : 'none'}
-                strokeWidth={inspection.activeSeriesKey === series.key ? 1 : 0}
-              />
-            )))}
-          </g>
+        {chartType === 'area' && signedBands(spec.data, spec.series).map((band, index) => (
+          <AreaClosed<BandPoint>
+            key={`${band.key}-${band.sign}-${index}`}
+            data={band.points}
+            yScale={yScale}
+            x={(point) => xScale(point.year)}
+            y0={(point) => yScale(point.y0)}
+            y1={(point) => yScale(point.y1)}
+            curve={spec.options.interpolation === 'step' ? curveStepAfter : curveLinear}
+            fill={colorForKey(spec, band.key)}
+            fillOpacity={inspection.activeSeriesKey && inspection.activeSeriesKey !== band.key ? 0.18 : 0.82}
+            stroke={inspection.activeSeriesKey === band.key ? '#111827' : 'none'}
+            strokeWidth={inspection.activeSeriesKey === band.key ? 1 : 0}
+          />
         ))}
         {chartType === 'bar' && cells.filter((cell) => !cell.isMissing && cell.sign !== 'zero').map((cell) => (
           <rect

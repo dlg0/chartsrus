@@ -41,8 +41,10 @@ export function RechartsStackChart({ spec, chartType, viewMode, showNetLine, sho
     for (const series of spec.series) {
       const value = row[series.key]
       next[series.key] = value // raw value, for line mode
-      next[`${series.key}__pos`] = value != null && value > 0 ? value : null
-      next[`${series.key}__neg`] = value != null && value < 0 ? value : null
+      // Off-sign contributions are 0 (a continuous zero-thickness taper), not null, so the sign-split
+      // areas never break and meet cleanly at the baseline. Only genuinely missing values stay null.
+      next[`${series.key}__pos`] = value == null ? null : Math.max(0, value)
+      next[`${series.key}__neg`] = value == null ? null : Math.min(0, value)
     }
     return next
   }), [net, spec, targets])

@@ -4,7 +4,7 @@ import { netLineData, targetLineData } from '../chartDerivedData'
 import { visibleYearTicks } from '../chartScales'
 import { colorForKey } from '../colors'
 import { densityTokens } from '../density'
-import { contiguousSignSegments, nearestYearFromX, seriesValueExtent, stackBySign, stackCellAtPoint, stackExtent, yearsFromSpec } from '../stackUtils'
+import { nearestYearFromX, seriesValueExtent, signedBands, stackBySign, stackCellAtPoint, stackExtent, yearsFromSpec } from '../stackUtils'
 import type { RendererProps, StackCell } from '../types'
 
 export function ObservablePlotStackChart({ spec, chartType, viewMode, showNetLine, showTargets, width, height, inspection, setInspection }: RendererProps) {
@@ -31,21 +31,15 @@ export function ObservablePlotStackChart({ spec, chartType, viewMode, showNetLin
       Plot.gridY({ stroke: '#e7eaf0' }),
       Plot.ruleY([0], { stroke: '#697386' }),
       ...(chartType === 'area'
-        ? spec.series.flatMap((series) => (['positive', 'negative'] as const).flatMap((sign) => contiguousSignSegments(
-          cells.filter((cell) => cell.key === series.key),
-          sign,
-        ).map((segment) => Plot.areaY(
-          segment,
-          {
-            x: 'year',
-            y1: 'y0',
-            y2: 'y1',
-            curve: spec.options.interpolation === 'step' ? 'step-after' : 'linear',
-            fill: colorForKey(spec, series.key),
-            fillOpacity: inspection.activeSeriesKey && inspection.activeSeriesKey !== series.key ? 0.18 : 0.76,
-            stroke: inspection.activeSeriesKey === series.key ? '#111827' : undefined,
-          },
-        ))))
+        ? signedBands(spec.data, spec.series).map((band) => Plot.areaY(band.points, {
+          x: 'year',
+          y1: 'y0',
+          y2: 'y1',
+          curve: spec.options.interpolation === 'step' ? 'step-after' : 'linear',
+          fill: colorForKey(spec, band.key),
+          fillOpacity: inspection.activeSeriesKey && inspection.activeSeriesKey !== band.key ? 0.18 : 0.76,
+          stroke: inspection.activeSeriesKey === band.key ? '#111827' : undefined,
+        }))
         : chartType === 'line'
           ? spec.series.map((series) => Plot.lineY(spec.data, {
             x: 'year',
