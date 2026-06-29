@@ -54,6 +54,7 @@ Look for these behaviours in the `ChartLab` page:
 - per-chart tools for regular/cumulative mode, net line, and NDC target overlay;
 - `save image` on each chart card exports a high-resolution PNG of that compact card as displayed;
 - `save full` exports the chart with all legend items and all inspector rows expanded inside the saved image;
+- `fullscreen` on each chart card expands that card to fill the screen and forces the same full detail (every legend item and every inspector row visible) while the plot grows to fit; each renderer resizes into the larger area, Plotly included;
 - one, two, or three chart columns via the columns control;
 - docked slice-first inspector for the selected model year;
 - pointer inspection by nearest scaled year, not nearest polygon;

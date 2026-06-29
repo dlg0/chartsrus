@@ -27,6 +27,7 @@ export function ChartCard({ name, note, spec, chartType, Renderer }: Props) {
   const [forceFullExportLayout, setForceFullExportLayout] = useState(false)
   const [toolsOpen, setToolsOpen] = useState(false)
   const [inspectorOpen, setInspectorOpen] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
   const selectedYear = inspection.pinnedYear ?? inspection.activeYear
   const [plotRef, plotSize] = useMeasure<HTMLDivElement>()
   const exportRef = useRef<HTMLElement | null>(null)
@@ -66,6 +67,24 @@ export function ChartCard({ name, note, spec, chartType, Renderer }: Props) {
     link.click()
   }
 
+  async function toggleFullscreen() {
+    if (!exportRef.current) return
+    try {
+      if (document.fullscreenElement === exportRef.current) await document.exitFullscreen()
+      else await exportRef.current.requestFullscreen()
+    } catch {
+      // Browsers reject fullscreen outside a user gesture or when disabled; ignore and stay inline.
+    }
+  }
+
+  useEffect(() => {
+    function handleFullscreenChange() {
+      setIsFullscreen(document.fullscreenElement === exportRef.current)
+    }
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
@@ -89,6 +108,10 @@ export function ChartCard({ name, note, spec, chartType, Renderer }: Props) {
     if (inspection.pinnedYear != null) setInspectorOpen(true)
   }, [inspection.pinnedYear])
 
+  // Fullscreen reuses the same full-detail layout as the full-image export: every legend item and
+  // every inspector row stays visible while the plot grows to fill the screen.
+  const showFullDetail = forceFullExportLayout || isFullscreen
+
   return (
     <section ref={exportRef} className="chart-card" style={{ '--inspector-width': `${tokens.inspectorWidth}px`, '--header-height': `${tokens.headerHeight}px` } as React.CSSProperties}>
       <header className="chart-card-header">
@@ -98,6 +121,7 @@ export function ChartCard({ name, note, spec, chartType, Renderer }: Props) {
         </div>
         <div className="chart-tools" data-export-ignore="true">
           <span>{inspection.pinnedYear == null ? 'hover selects' : `pinned ${inspection.pinnedYear}`}</span>
+          <button type="button" onClick={() => void toggleFullscreen()} aria-pressed={isFullscreen}>{isFullscreen ? 'exit full screen' : 'fullscreen'}</button>
           <button type="button" onClick={() => setToolsOpen((open) => !open)} aria-expanded={toolsOpen}>tools</button>
           {toolsOpen && (
             <div className="tools-popover" role="dialog" aria-label={`${name} tools`}>
@@ -115,7 +139,7 @@ export function ChartCard({ name, note, spec, chartType, Renderer }: Props) {
         </div>
       </header>
       {isolatedSeriesKeys.size > 0 && <div className="isolation-banner">Only isolated traces are plotted. Click legend rows to add/remove traces, or use show all.</div>}
-      <CompactLegend spec={spec} activeSeriesKey={inspection.activeSeriesKey} isolatedSeriesKeys={isolatedSeriesKeys} forceFull={forceFullExportLayout} setIsolatedSeriesKeys={setIsolatedSeriesKeys} setInspection={setInspection} />
+      <CompactLegend spec={spec} activeSeriesKey={inspection.activeSeriesKey} isolatedSeriesKeys={isolatedSeriesKeys} forceFull={showFullDetail} setIsolatedSeriesKeys={setIsolatedSeriesKeys} setInspection={setInspection} />
       <div className="chart-card-body">
         <div className="plot-column">
           <div className="plot-host" ref={plotRef}>
@@ -125,7 +149,7 @@ export function ChartCard({ name, note, spec, chartType, Renderer }: Props) {
           </div>
         </div>
       </div>
-      <StackSliceInspector spec={renderSpec} selectedYear={selectedYear} activeSeriesKey={inspection.activeSeriesKey} isOpen={inspectorOpen} forceFull={forceFullExportLayout} onOpenChange={setInspectorOpen} setInspection={setInspection} />
+      <StackSliceInspector spec={renderSpec} selectedYear={selectedYear} activeSeriesKey={inspection.activeSeriesKey} isOpen={inspectorOpen} forceFull={showFullDetail} onOpenChange={setInspectorOpen} setInspection={setInspection} />
       <p className="renderer-note">{note}</p>
     </section>
   )

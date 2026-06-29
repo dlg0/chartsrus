@@ -35,6 +35,9 @@ button { cursor: pointer; }
 .plot-host, .recharts-wrap, .observable-wrap, .plotly-wrap { width: 100%; height: 248px; }
 .plotly-wrap .modebar { background: transparent; }
 .chart-svg { display: block; }
+.chart-card:fullscreen { display: flex; flex-direction: column; width: 100vw; height: 100vh; border-radius: 0; overflow: auto; }
+.chart-card:fullscreen .chart-card-body { flex: 1 1 auto; min-height: 0; }
+.chart-card:fullscreen .plot-host, .chart-card:fullscreen .recharts-wrap, .chart-card:fullscreen .observable-wrap, .chart-card:fullscreen .plotly-wrap { height: 100%; }
 .cursor-line { stroke: #111827; stroke-width: 1; stroke-dasharray: 3 3; pointer-events: none; }
 .inspector { border-top: 1px solid #e3e7ee; padding: 4px 6px; min-width: 0; background: #fbfcfe; }
 .inspector.collapsed { padding: 0; }
