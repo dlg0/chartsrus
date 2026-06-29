@@ -49,8 +49,11 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
 
   const data = useMemo<Data[]>(() => {
     const opacityFor = (key: string) => (activeKey && activeKey !== key ? DIMMED_OPACITY : ACTIVE_OPACITY)
-    const bandHover = showNativeTooltip ? 'name' : 'none'
-    const overlayHover = showNativeTooltip ? 'y+name' : 'skip'
+    // Tooltip on: a single closest-trace label (bands show their name, the net/target lines show a value).
+    // x-unified over tiled bands showed a confusing transparent subset, so closest mode is used instead.
+    // Off: no hover label at all - the docked inspector is the readout.
+    const bandHoverProps = showNativeTooltip ? { hovertemplate: '%{fullData.name}<extra></extra>' } : { hoverinfo: 'none' as const }
+    const overlayHoverProps = showNativeTooltip ? { hovertemplate: `%{fullData.name}: %{y:.0f} ${spec.unit}<extra></extra>` } : { hoverinfo: 'skip' as const }
     // Full-width tapered bands tile without the triangular gaps that per-segment polygons leave at
     // sign changes; one legend entry per series (the first band) drives the grouped legend toggle.
     const buildAreas = (): Data[] => {
@@ -67,7 +70,7 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
           fillcolor: color,
           line: { color, width: 0.5 },
           opacity: opacityFor(band.key),
-          hoverinfo: bandHover,
+          ...bandHoverProps,
           legendgroup: band.key,
           name: band.shortLabel,
           showlegend: showNativeLegend && bands.findIndex((other) => other.key === band.key) === index,
@@ -85,12 +88,13 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
         width: barWidth,
         marker: { color: colorForKey(spec, series.key), line: { width: 0 } },
         opacity: opacityFor(series.key),
-        hoverinfo: bandHover,
+        ...bandHoverProps,
         legendgroup: series.key,
         name: series.shortLabel,
         showlegend: showNativeLegend,
-        // base (the floating-bar origin) is a core Plotly bar attribute the bundled @types lag on.
-      }) as Data)
+        // base (the floating-bar origin) is a core Plotly bar attribute the bundled @types lag on, so
+        // this trace is cast through unknown.
+      }) as unknown as Data)
     // Lines plot each series' raw value (unstacked); nulls break the line rather than bridging gaps.
     const buildLines = (): Data[] => spec.series.map((series) => ({
       type: 'scatter',
@@ -99,7 +103,7 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
       y: spec.data.map((row) => row[series.key]),
       line: { color: colorForKey(spec, series.key), width: 1.5, shape: spec.options.interpolation === 'step' ? 'hv' : 'linear' },
       opacity: opacityFor(series.key),
-      hoverinfo: bandHover,
+      ...bandHoverProps,
       legendgroup: series.key,
       name: series.shortLabel,
       showlegend: showNativeLegend,
@@ -109,8 +113,8 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
     const seriesTraces: Data[] = chartType === 'area' ? buildAreas() : chartType === 'line' ? buildLines() : buildBars()
 
     const overlays: Data[] = [
-      ...(showTargets ? [{ type: 'scatter', mode: 'lines', x: targets.map((point) => point.year), y: targets.map((point) => point.target), line: { color: '#7c3aed', width: 1.4, dash: 'dash' }, hoverinfo: overlayHover, name: 'NDC target', showlegend: showNativeLegend } as Data] : []),
-      ...(showNetLine ? [{ type: 'scatter', mode: 'lines', x: net.map((point) => point.year), y: net.map((point) => point.net), line: { color: '#111827', width: 1.5 }, hoverinfo: overlayHover, name: 'Net balance', showlegend: showNativeLegend } as Data] : []),
+      ...(showTargets ? [{ type: 'scatter', mode: 'lines', x: targets.map((point) => point.year), y: targets.map((point) => point.target), line: { color: '#7c3aed', width: 1.4, dash: 'dash' }, ...overlayHoverProps, name: 'NDC target', showlegend: showNativeLegend } as Data] : []),
+      ...(showNetLine ? [{ type: 'scatter', mode: 'lines', x: net.map((point) => point.year), y: net.map((point) => point.net), line: { color: '#111827', width: 1.5 }, ...overlayHoverProps, name: 'Net balance', showlegend: showNativeLegend } as Data] : []),
     ]
     return [...seriesTraces, ...overlays]
   }, [activeKey, barWidth, cells, chartType, net, showNativeLegend, showNativeTooltip, showNetLine, showTargets, spec, targets])
@@ -133,9 +137,10 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
       legend: { font: { size: tokens.axisFontSize }, groupclick: 'togglegroup' },
       // Lighter, less obtrusive modebar icons over the dense plot.
       modebar: { bgcolor: 'rgba(255,255,255,0)', color: '#b9c0cc', activecolor: '#5b6573' },
-      // 'x' family keeps the cursor monotonic (nearest x), unlike 'closest' which snapped erratically to
-      // the nearest polygon vertex. Unified adds the combined hover box when the tooltip is enabled.
-      hovermode: showNativeTooltip ? 'x unified' : 'x',
+      // Solid label box so the optional tooltip is readable (the default was effectively transparent).
+      hoverlabel: { bgcolor: '#ffffff', bordercolor: '#cbd3df', font: { size: tokens.axisFontSize, color: '#172033' } },
+      // Tooltip on: a single closest-trace label. Off: 'x' just feeds the monotonic cursor spike (no label).
+      hovermode: showNativeTooltip ? 'closest' : 'x',
       dragmode: 'zoom',
       barmode: 'overlay',
       // Keep pan/zoom and legend visibility toggles across data updates so hover redraws never reset them.
@@ -151,8 +156,8 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
         ticks: 'outside',
         tickcolor: '#c6ccd6',
         ticklen: 3,
-        // Own spikeline only when the unified tooltip is off (unified draws its own guide line).
-        showspikes: !showNativeTooltip,
+        // Cursor spike is the live cursor in both modes; spikesnap 'cursor' makes it follow the mouse.
+        showspikes: true,
         spikemode: 'across',
         spikethickness: 1,
         spikecolor: '#94a3b8',
@@ -178,32 +183,35 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
     responsive: false,
     scrollZoom: false,
     displayModeBar: 'hover',
-    // Keep hoverClosestCartesian (the select-nearest toggle); drop the PNG export (the card has its own
-    // save image / save full) and the rest of the noise.
-    modeBarButtonsToRemove: ['toImage', 'lasso2d', 'select2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d', 'toggleSpikelines', 'hoverCompareCartesian'],
-    modeBarButtonsToAdd: [
-      {
-        name: 'fullscreen',
-        title: 'Full screen (keeps the full legend and inspector visible)',
-        icon: FULLSCREEN_ICON,
-        click: (gd: HTMLElement) => {
-          const card = gd.closest('.chart-card')
-          if (document.fullscreenElement) void document.exitFullscreen()
-          else if (card instanceof HTMLElement) void card.requestFullscreen().catch(() => {})
+    // Spell out the modebar so the select-nearest (hoverClosestCartesian) toggle is guaranteed to appear
+    // (Plotly was dropping it from the defaults); the PNG export is left out in favour of the card's own
+    // save image / save full, along with the lasso/box-select and zoom-step noise.
+    modeBarButtons: [
+      ['zoom2d', 'pan2d', 'resetScale2d', 'hoverClosestCartesian'],
+      [
+        {
+          name: 'fullscreen',
+          title: 'Full screen (keeps the full legend and inspector visible)',
+          icon: FULLSCREEN_ICON,
+          click: (gd: HTMLElement) => {
+            const card = gd.closest('.chart-card')
+            if (document.fullscreenElement) void document.exitFullscreen()
+            else if (card instanceof HTMLElement) void card.requestFullscreen().catch(() => {})
+          },
         },
-      },
-      {
-        name: 'toggle-tooltip',
-        title: 'Toggle the Plotly hover tooltip',
-        icon: TOOLTIP_ICON,
-        click: () => setShowNativeTooltip((value) => !value),
-      },
-      {
-        name: 'toggle-legend',
-        title: 'Toggle the Plotly legend (click to hide a series, double-click to isolate one)',
-        icon: LEGEND_ICON,
-        click: () => setShowNativeLegend((value) => !value),
-      },
+        {
+          name: 'toggle-tooltip',
+          title: 'Toggle the Plotly hover tooltip',
+          icon: TOOLTIP_ICON,
+          click: () => setShowNativeTooltip((value) => !value),
+        },
+        {
+          name: 'toggle-legend',
+          title: 'Toggle the Plotly legend (click to hide a series, double-click to isolate one)',
+          icon: LEGEND_ICON,
+          click: () => setShowNativeLegend((value) => !value),
+        },
+      ],
     ],
   }), [])
 
