@@ -20,9 +20,12 @@ const DIMMED_OPACITY = 0.18
 // misleading area across zero.
 export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showTargets, width, height, inspection, setInspection }: RendererProps) {
   const ref = useRef<HTMLDivElement | null>(null)
+  const readyRef = useRef(false)
   const tokens = densityTokens[spec.options.density]
   const cells = useMemo(() => stackBySign(spec.data, spec.series), [spec])
   const years = useMemo(() => yearsFromSpec(spec), [spec])
+  const yearsRef = useRef(years)
+  yearsRef.current = years
   const xTicks = useMemo(() => visibleYearTicks(years, width), [width, years])
   const net = useMemo(() => netLineData(spec.data, spec.series), [spec])
   const targets = useMemo(() => targetLineData(years, viewMode), [viewMode, years])
@@ -148,28 +151,29 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
     toImageButtonOptions: { format: 'png', filename: 'plotly-emissions-stack', scale: 3 },
   }), [])
 
-  useEffect(() => {
-    if (ref.current) void Plotly.react(ref.current, data, layout, config)
-  }, [data, layout, config])
-
-  // Purge only on unmount so Plotly.react can diff in place across every update.
+  // Diff the figure in place on every change; readyRef flips true once a draw has resolved so teardown
+  // knows a real plot exists. Rejections are swallowed because a StrictMode/reset remount can purge a
+  // graph mid-draw.
   useEffect(() => {
     const el = ref.current
-    return () => { if (el) Plotly.purge(el) }
-  }, [])
+    if (el) void Plotly.react(el, data, layout, config).then(() => { readyRef.current = true }).catch(() => {})
+  }, [data, layout, config])
 
+  // Bind events once and own all teardown in a single cleanup so order is deterministic: remove the
+  // listeners first (guarded, since Plotly only adds the emitter once a plot exists), then purge, and
+  // only purge after a draw has resolved so a remount cannot tear down a graph mid-draw. years is read
+  // through a ref so the handlers never need rebinding.
   useEffect(() => {
     const el = ref.current as PlotlyHTMLElement | null
     if (!el) return
-    const snapYear = (value: number) => years.reduce((nearest, year) => (Math.abs(year - value) < Math.abs(nearest - value) ? year : nearest), years[0])
+    const snapYear = (value: number) => yearsRef.current.reduce((nearest, year) => (Math.abs(year - value) < Math.abs(nearest - value) ? year : nearest), yearsRef.current[0])
     const keyOf = (event: PlotMouseEvent) => {
       const meta = (event.points[0]?.data as { meta?: unknown } | undefined)?.meta
       return typeof meta === 'string' ? meta : null
     }
     const onHover = (event: PlotMouseEvent) => {
       const point = event.points[0]
-      if (!point) return
-      setInspection((state) => ({ ...state, activeYear: snapYear(Number(point.x)), activeSeriesKey: keyOf(event) }))
+      if (point) setInspection((state) => ({ ...state, activeYear: snapYear(Number(point.x)), activeSeriesKey: keyOf(event) }))
     }
     const onUnhover = () => setInspection((state) => ({ ...state, activeSeriesKey: null }))
     const onClick = (event: PlotMouseEvent) => {
@@ -178,15 +182,22 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
       const year = snapYear(Number(point.x))
       setInspection((state) => ({ ...state, activeYear: year, pinnedYear: state.pinnedYear === year ? null : year }))
     }
-    el.on('plotly_hover', onHover)
-    el.on('plotly_unhover', onUnhover)
-    el.on('plotly_click', onClick)
-    return () => {
-      el.removeAllListeners('plotly_hover')
-      el.removeAllListeners('plotly_unhover')
-      el.removeAllListeners('plotly_click')
+    if (typeof el.on === 'function') {
+      el.on('plotly_hover', onHover)
+      el.on('plotly_unhover', onUnhover)
+      el.on('plotly_click', onClick)
     }
-  }, [years, setInspection])
+    return () => {
+      if (typeof el.removeAllListeners === 'function') {
+        el.removeAllListeners('plotly_hover')
+        el.removeAllListeners('plotly_unhover')
+        el.removeAllListeners('plotly_click')
+      }
+      if (readyRef.current) {
+        try { Plotly.purge(el) } catch { /* graph already torn down */ }
+      }
+    }
+  }, [setInspection])
 
   return <div className="plotly-wrap" ref={ref} />
 }
