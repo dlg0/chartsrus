@@ -4,7 +4,7 @@ import { netLineData, targetLineData } from '../chartDerivedData'
 import { visibleYearTicks } from '../chartScales'
 import { colorForKey } from '../colors'
 import { densityTokens } from '../density'
-import { contiguousSignSegments, nearestYearFromX, stackBySign, stackCellAtPoint, stackExtent, yearsFromSpec } from '../stackUtils'
+import { contiguousSignSegments, nearestYearFromX, seriesValueExtent, stackBySign, stackCellAtPoint, stackExtent, yearsFromSpec } from '../stackUtils'
 import type { RendererProps, StackCell } from '../types'
 
 export function ObservablePlotStackChart({ spec, chartType, viewMode, showNetLine, showTargets, width, height, inspection, setInspection }: RendererProps) {
@@ -16,12 +16,14 @@ export function ObservablePlotStackChart({ spec, chartType, viewMode, showNetLin
   const net = useMemo(() => netLineData(spec.data, spec.series), [spec])
   const targets = useMemo(() => targetLineData(years, viewMode), [viewMode, years])
   const [stackMin, stackMax] = stackExtent(cells)
+  const [valueMin, valueMax] = seriesValueExtent(spec.data, spec.series)
   const overlayValues = [
     ...(showNetLine ? net.map((point) => point.net) : []),
     ...(showTargets ? targets.map((point) => point.target) : []),
   ]
-  const yMin = Math.min(stackMin, ...overlayValues)
-  const yMax = Math.max(stackMax, ...overlayValues)
+  // Lines plot each series' own value, so they need the per-series extent, not the stacked extent.
+  const yMin = Math.min(chartType === 'line' ? valueMin : stackMin, ...overlayValues)
+  const yMax = Math.max(chartType === 'line' ? valueMax : stackMax, ...overlayValues)
   const selectedYear = inspection.pinnedYear ?? inspection.activeYear
 
   useEffect(() => {
@@ -44,9 +46,18 @@ export function ObservablePlotStackChart({ spec, chartType, viewMode, showNetLin
             stroke: inspection.activeSeriesKey === series.key ? '#111827' : undefined,
           },
         ))))
-        : [Plot.rectY(cells.filter((cell) => !cell.isMissing && cell.sign !== 'zero'), {
-          x: 'year', y1: 'y0', y2: 'y1', interval: 1, fill: (cell: StackCell) => colorForKey(spec, cell.key), fillOpacity: (cell: StackCell) => inspection.activeSeriesKey && inspection.activeSeriesKey !== cell.key ? 0.18 : 0.76,
-        })]),
+        : chartType === 'line'
+          ? spec.series.map((series) => Plot.lineY(spec.data, {
+            x: 'year',
+            y: series.key,
+            curve: spec.options.interpolation === 'step' ? 'step-after' : 'linear',
+            stroke: colorForKey(spec, series.key),
+            strokeWidth: 1.5,
+            strokeOpacity: inspection.activeSeriesKey && inspection.activeSeriesKey !== series.key ? 0.18 : 0.85,
+          }))
+          : [Plot.rectY(cells.filter((cell) => !cell.isMissing && cell.sign !== 'zero'), {
+            x: 'year', y1: 'y0', y2: 'y1', interval: 1, fill: (cell: StackCell) => colorForKey(spec, cell.key), fillOpacity: (cell: StackCell) => inspection.activeSeriesKey && inspection.activeSeriesKey !== cell.key ? 0.18 : 0.76,
+          })]),
       ...(showTargets ? [Plot.lineY(targets, { x: 'year', y: 'target', stroke: '#7c3aed', strokeWidth: 1.4, strokeDasharray: '5 4' })] : []),
       ...(showNetLine ? [Plot.lineY(net, { x: 'year', y: 'net', stroke: '#111827', strokeWidth: 1.5 })] : []),
       ...(selectedYear == null ? [] : [Plot.ruleX([selectedYear], { stroke: '#111827', strokeDasharray: '3 3' })]),

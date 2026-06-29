@@ -1,5 +1,5 @@
 export type ChartDensity = 'comfortable' | 'compact' | 'dense'
-export type ChartType = 'area' | 'bar'
+export type ChartType = 'area' | 'bar' | 'line'
 export type ChartViewMode = 'regular' | 'cumulative'
 
 export type StackChartSpec = {

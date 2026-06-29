@@ -50,7 +50,7 @@ export function App() {
           <label>Density <select value={density} onChange={(event) => setDensity(event.target.value as ChartDensity)}><option>comfortable</option><option>compact</option><option>dense</option></select></label>
           <label>Interpolation <select value={interpolation} onChange={(event) => setInterpolation(event.target.value as StackChartSpec['options']['interpolation'])}><option>linear</option><option>step</option></select></label>
           <label>Series <select value={useFullSeries ? 'full' : 'grouped'} onChange={(event) => setUseFullSeries(event.target.value === 'full')}><option value="full">full</option><option value="grouped">reduced</option></select></label>
-          <label>Chart type <select value={chartType} onChange={(event) => setChartType(event.target.value as ChartType)}><option>area</option><option>bar</option></select></label>
+          <label>Chart type <select value={chartType} onChange={(event) => setChartType(event.target.value as ChartType)}><option>area</option><option>bar</option><option>line</option></select></label>
           <label>Columns <select value={chartColumns} onChange={(event) => setChartColumns(Number(event.target.value) as ChartColumns)}><option value={1}>1</option><option value={2}>2</option><option value={3}>3</option></select></label>
           <button type="button" onClick={() => setResetKey((key) => key + 1)}>reset inspection</button>
         </div>

@@ -123,6 +123,17 @@ export function stackExtent(cells: StackCell[]): [number, number] {
   return [Math.min(0, ...values), Math.max(0, ...values)]
 }
 
+export function seriesValueExtent(rows: StackDatum[], series: StackSeriesMeta[]): [number, number] {
+  const values: number[] = []
+  for (const row of rows) {
+    for (const meta of series) {
+      const value = row[meta.key]
+      if (value != null) values.push(value)
+    }
+  }
+  return [Math.min(0, ...values), Math.max(0, ...values)]
+}
+
 export function stackCellAtPoint(
   cells: StackCell[],
   year: number,

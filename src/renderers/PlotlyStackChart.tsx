@@ -5,8 +5,8 @@ import { netLineData, targetLineData } from '../chartDerivedData'
 import { visibleYearTicks } from '../chartScales'
 import { colorForKey } from '../colors'
 import { densityTokens } from '../density'
-import { bandRing } from '../plotlyBands'
-import { contiguousSignSegments, nearestYearFromX, stackBySign, stackCellAtPoint, stackExtent, yearsFromSpec } from '../stackUtils'
+import { bandRing, signedBands } from '../plotlyBands'
+import { nearestYearFromX, seriesValueExtent, stackBySign, stackCellAtPoint, stackExtent, yearsFromSpec } from '../stackUtils'
 import type { RendererProps } from '../types'
 
 const ACTIVE_OPACITY = 0.85
@@ -35,12 +35,14 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
   const net = useMemo(() => netLineData(spec.data, spec.series), [spec])
   const targets = useMemo(() => targetLineData(years, viewMode), [viewMode, years])
   const [stackMin, stackMax] = stackExtent(cells)
+  const [valueMin, valueMax] = seriesValueExtent(spec.data, spec.series)
   const overlayValues = [
     ...(showNetLine ? net.map((point) => point.net) : []),
     ...(showTargets ? targets.map((point) => point.target) : []),
   ]
-  const yMin = Math.min(stackMin, ...overlayValues)
-  const yMax = Math.max(stackMax, ...overlayValues)
+  // Lines plot each series' own value, so they need the per-series extent, not the stacked extent.
+  const yMin = Math.min(chartType === 'line' ? valueMin : stackMin, ...overlayValues)
+  const yMax = Math.max(chartType === 'line' ? valueMax : stackMax, ...overlayValues)
   const activeKey = inspection.activeSeriesKey
   const minGap = years.slice(1).reduce((gap, year, index) => Math.min(gap, year - years[index]), Number.POSITIVE_INFINITY)
   const barWidth = Number.isFinite(minGap) ? minGap * 0.8 : 1
@@ -49,47 +51,62 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
     const opacityFor = (key: string) => (activeKey && activeKey !== key ? DIMMED_OPACITY : ACTIVE_OPACITY)
     const bandHover = showNativeTooltip ? 'name' : 'none'
     const overlayHover = showNativeTooltip ? 'y+name' : 'skip'
-    const seriesTraces: Data[] = chartType === 'area'
-      ? spec.series.flatMap((series) => {
-        const color = colorForKey(spec, series.key)
-        const seriesCells = cells.filter((cell) => cell.key === series.key)
-        const segments = (['positive', 'negative'] as const).flatMap((sign) => contiguousSignSegments(seriesCells, sign))
-        return segments.map((segment, index) => {
-          const ring = bandRing(segment, spec.options.interpolation)
-          return {
-            type: 'scatter',
-            mode: 'lines',
-            x: ring.x,
-            y: ring.y,
-            fill: 'toself',
-            fillcolor: color,
-            line: { color, width: 0.5 },
-            opacity: opacityFor(series.key),
-            hoverinfo: bandHover,
-            legendgroup: series.key,
-            name: series.shortLabel,
-            // One legend entry per logical series; legendgroup makes a legend click toggle every segment.
-            showlegend: showNativeLegend && index === 0,
-          } as Data
-        })
-      })
-      : spec.series
-        .map((series) => ({ series, barCells: cells.filter((cell) => cell.key === series.key && !cell.isMissing && cell.sign !== 'zero') }))
-        .filter(({ barCells }) => barCells.length > 0)
-        .map(({ series, barCells }) => ({
-          type: 'bar',
-          x: barCells.map((cell) => cell.year),
-          y: barCells.map((cell) => cell.y1 - cell.y0),
-          base: barCells.map((cell) => cell.y0),
-          width: barWidth,
-          marker: { color: colorForKey(spec, series.key), line: { width: 0 } },
-          opacity: opacityFor(series.key),
+    // Full-width tapered bands tile without the triangular gaps that per-segment polygons leave at
+    // sign changes; one legend entry per series (the first band) drives the grouped legend toggle.
+    const buildAreas = (): Data[] => {
+      const bands = signedBands(spec.data, spec.series)
+      return bands.map((band, index) => {
+        const color = colorForKey(spec, band.key)
+        const ring = bandRing(band.points, spec.options.interpolation)
+        return {
+          type: 'scatter',
+          mode: 'lines',
+          x: ring.x,
+          y: ring.y,
+          fill: 'toself',
+          fillcolor: color,
+          line: { color, width: 0.5 },
+          opacity: opacityFor(band.key),
           hoverinfo: bandHover,
-          legendgroup: series.key,
-          name: series.shortLabel,
-          showlegend: showNativeLegend,
-          // base (the floating-bar origin) is a core Plotly bar attribute the bundled @types lag on.
-        }) as Data)
+          legendgroup: band.key,
+          name: band.shortLabel,
+          showlegend: showNativeLegend && bands.findIndex((other) => other.key === band.key) === index,
+        } as Data
+      })
+    }
+    const buildBars = (): Data[] => spec.series
+      .map((series) => ({ series, barCells: cells.filter((cell) => cell.key === series.key && !cell.isMissing && cell.sign !== 'zero') }))
+      .filter(({ barCells }) => barCells.length > 0)
+      .map(({ series, barCells }) => ({
+        type: 'bar',
+        x: barCells.map((cell) => cell.year),
+        y: barCells.map((cell) => cell.y1 - cell.y0),
+        base: barCells.map((cell) => cell.y0),
+        width: barWidth,
+        marker: { color: colorForKey(spec, series.key), line: { width: 0 } },
+        opacity: opacityFor(series.key),
+        hoverinfo: bandHover,
+        legendgroup: series.key,
+        name: series.shortLabel,
+        showlegend: showNativeLegend,
+        // base (the floating-bar origin) is a core Plotly bar attribute the bundled @types lag on.
+      }) as Data)
+    // Lines plot each series' raw value (unstacked); nulls break the line rather than bridging gaps.
+    const buildLines = (): Data[] => spec.series.map((series) => ({
+      type: 'scatter',
+      mode: 'lines',
+      x: spec.data.map((row) => row.year),
+      y: spec.data.map((row) => row[series.key]),
+      line: { color: colorForKey(spec, series.key), width: 1.5, shape: spec.options.interpolation === 'step' ? 'hv' : 'linear' },
+      opacity: opacityFor(series.key),
+      hoverinfo: bandHover,
+      legendgroup: series.key,
+      name: series.shortLabel,
+      showlegend: showNativeLegend,
+      connectgaps: false,
+    }) as Data)
+
+    const seriesTraces: Data[] = chartType === 'area' ? buildAreas() : chartType === 'line' ? buildLines() : buildBars()
 
     const overlays: Data[] = [
       ...(showTargets ? [{ type: 'scatter', mode: 'lines', x: targets.map((point) => point.year), y: targets.map((point) => point.target), line: { color: '#7c3aed', width: 1.4, dash: 'dash' }, hoverinfo: overlayHover, name: 'NDC target', showlegend: showNativeLegend } as Data] : []),
@@ -159,7 +176,8 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
     responsive: false,
     scrollZoom: false,
     displayModeBar: 'hover',
-    modeBarButtonsToRemove: ['lasso2d', 'select2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d', 'toggleSpikelines', 'hoverClosestCartesian', 'hoverCompareCartesian'],
+    // Keep hoverClosestCartesian (the select-nearest toggle); drop the rest of the noise.
+    modeBarButtonsToRemove: ['lasso2d', 'select2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d', 'toggleSpikelines', 'hoverCompareCartesian'],
     modeBarButtonsToAdd: [
       {
         name: 'fullscreen',

@@ -2,15 +2,15 @@ import { curveLinear, curveStepAfter } from '@visx/curve'
 import { GridRows } from '@visx/grid'
 import { Group } from '@visx/group'
 import { scaleLinear } from '@visx/scale'
-import { AreaClosed, Bar } from '@visx/shape'
+import { AreaClosed, Bar, LinePath } from '@visx/shape'
 import { AxisBottom, AxisLeft } from '@visx/axis'
 import { useMemo } from 'react'
 import { netLineData, targetLineData } from '../chartDerivedData'
 import { visibleYearTicks } from '../chartScales'
 import { colorForKey } from '../colors'
 import { densityTokens } from '../density'
-import { contiguousSignSegments, nearestYearFromX, stackBySign, stackCellAtPoint, stackExtent, yearsFromSpec } from '../stackUtils'
-import type { RendererProps, StackCell } from '../types'
+import { contiguousSignSegments, nearestYearFromX, seriesValueExtent, stackBySign, stackCellAtPoint, stackExtent, yearsFromSpec } from '../stackUtils'
+import type { RendererProps, StackCell, StackDatum } from '../types'
 
 export function VisxStackChart({ spec, chartType, viewMode, showNetLine, showTargets, width, height, inspection, setInspection }: RendererProps) {
   const tokens = densityTokens[spec.options.density]
@@ -23,12 +23,14 @@ export function VisxStackChart({ spec, chartType, viewMode, showNetLine, showTar
   const net = useMemo(() => netLineData(spec.data, spec.series), [spec])
   const targets = useMemo(() => targetLineData(years, viewMode), [viewMode, years])
   const [stackMin, stackMax] = stackExtent(cells)
+  const [valueMin, valueMax] = seriesValueExtent(spec.data, spec.series)
   const overlayValues = [
     ...(showNetLine ? net.map((point) => point.net) : []),
     ...(showTargets ? targets.map((point) => point.target) : []),
   ]
-  const yMin = Math.min(stackMin, ...overlayValues)
-  const yMax = Math.max(stackMax, ...overlayValues)
+  // Lines plot each series' own value, so they need the per-series extent, not the stacked extent.
+  const yMin = Math.min(chartType === 'line' ? valueMin : stackMin, ...overlayValues)
+  const yMax = Math.max(chartType === 'line' ? valueMax : stackMax, ...overlayValues)
   const xScale = scaleLinear({ domain: [Math.min(...years), Math.max(...years)], range: [0, innerWidth] })
   const yScale = scaleLinear({ domain: [yMin * 1.05, yMax * 1.05], range: [innerHeight, 0], nice: true })
   const selectedYear = inspection.pinnedYear ?? inspection.activeYear
@@ -77,6 +79,19 @@ export function VisxStackChart({ spec, chartType, viewMode, showNetLine, showTar
             height={Math.abs(yScale(cell.y0) - yScale(cell.y1))}
             fill={colorForKey(spec, cell.key)}
             opacity={inspection.activeSeriesKey && inspection.activeSeriesKey !== cell.key ? 0.18 : 0.82}
+          />
+        ))}
+        {chartType === 'line' && spec.series.map((series) => (
+          <LinePath<StackDatum>
+            key={series.key}
+            data={spec.data}
+            x={(datum) => xScale(datum.year)}
+            y={(datum) => yScale(datum[series.key] ?? 0)}
+            defined={(datum) => datum[series.key] != null}
+            curve={spec.options.interpolation === 'step' ? curveStepAfter : curveLinear}
+            stroke={colorForKey(spec, series.key)}
+            strokeWidth={1.5}
+            strokeOpacity={inspection.activeSeriesKey && inspection.activeSeriesKey !== series.key ? 0.18 : 0.85}
           />
         ))}
         {selectedYear != null && <line className="cursor-line" x1={xScale(selectedYear)} x2={xScale(selectedYear)} y1={0} y2={innerHeight} />}

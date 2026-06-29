@@ -1,10 +1,10 @@
 import { useMemo } from 'react'
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { netLineData, targetLineData } from '../chartDerivedData'
 import { readableYTicks, visibleYearTicks } from '../chartScales'
 import { colorForKey } from '../colors'
 import { densityTokens } from '../density'
-import { getSignChangingSeriesKeys, nearestYearFromX, stackBySign, stackCellAtPoint, stackExtent, yearsFromSpec } from '../stackUtils'
+import { getSignChangingSeriesKeys, nearestYearFromX, seriesValueExtent, stackBySign, stackCellAtPoint, stackExtent, yearsFromSpec } from '../stackUtils'
 import type { RendererProps } from '../types'
 
 export function RechartsStackChart({ spec, chartType, viewMode, showNetLine, showTargets, width, inspection, setInspection }: RendererProps) {
@@ -15,16 +15,18 @@ export function RechartsStackChart({ spec, chartType, viewMode, showNetLine, sho
   const net = useMemo(() => netLineData(spec.data, spec.series), [spec])
   const targets = useMemo(() => targetLineData(years, viewMode), [viewMode, years])
   const [stackMin, stackMax] = stackExtent(cells)
+  const [valueMin, valueMax] = seriesValueExtent(spec.data, spec.series)
   const overlayValues = [
     ...(showNetLine ? net.map((point) => point.net) : []),
     ...(showTargets ? targets.map((point) => point.target) : []),
   ]
-  const yMin = Math.min(stackMin, ...overlayValues)
-  const yMax = Math.max(stackMax, ...overlayValues)
+  // Lines plot each series' own value, so they need the per-series extent, not the stacked extent.
+  const yMin = Math.min(chartType === 'line' ? valueMin : stackMin, ...overlayValues)
+  const yMax = Math.max(chartType === 'line' ? valueMax : stackMax, ...overlayValues)
   const yDomain: [number, number] = [Math.floor(yMin * 1.1), Math.ceil(yMax * 1.1)]
   const yTicks = useMemo(() => readableYTicks(yDomain[0], yDomain[1]), [yDomain])
   const selectedYear = inspection.pinnedYear ?? inspection.activeYear
-  const Component = chartType === 'area' ? AreaChart : BarChart
+  const Component = chartType === 'area' ? AreaChart : chartType === 'line' ? LineChart : BarChart
   const signChangingKeys = useMemo(() => getSignChangingSeriesKeys(spec.data, spec.series), [spec])
   const stackOrder = useMemo(() => [
     ...spec.series.filter((series) => signChangingKeys.has(series.key)),
@@ -38,6 +40,7 @@ export function RechartsStackChart({ spec, chartType, viewMode, showNetLine, sho
     next.target = targetPoint?.target ?? null
     for (const series of spec.series) {
       const value = row[series.key]
+      next[series.key] = value // raw value, for line mode
       next[`${series.key}__pos`] = value != null && value > 0 ? value : null
       next[`${series.key}__neg`] = value != null && value < 0 ? value : null
     }
@@ -68,11 +71,15 @@ export function RechartsStackChart({ spec, chartType, viewMode, showNetLine, sho
           <Tooltip content={() => null} cursor={false} />
           <ReferenceLine y={0} stroke="#697386" />
           {selectedYear != null && <ReferenceLine x={selectedYear} stroke="#111827" strokeDasharray="3 3" />}
-          {stackOrder.flatMap((series) => (['__pos', '__neg'] as const).map((suffix) => chartType === 'area' ? (
-            <Area key={`${series.key}${suffix}`} dataKey={`${series.key}${suffix}`} stackId="stack" type={spec.options.interpolation === 'step' ? 'stepAfter' : 'linear'} fill={colorForKey(spec, series.key)} stroke={inspection.activeSeriesKey === series.key ? '#111827' : 'none'} fillOpacity={inspection.activeSeriesKey && inspection.activeSeriesKey !== series.key ? 0.18 : 0.72} isAnimationActive={false} connectNulls={false} />
-          ) : (
-            <Bar key={`${series.key}${suffix}`} dataKey={`${series.key}${suffix}`} stackId="stack" fill={colorForKey(spec, series.key)} fillOpacity={inspection.activeSeriesKey && inspection.activeSeriesKey !== series.key ? 0.18 : 0.78} isAnimationActive={false} />
-          ))) }
+          {chartType === 'line'
+            ? spec.series.map((series) => (
+              <Line key={series.key} type={spec.options.interpolation === 'step' ? 'stepAfter' : 'linear'} dataKey={series.key} stroke={colorForKey(spec, series.key)} strokeWidth={1.5} strokeOpacity={inspection.activeSeriesKey && inspection.activeSeriesKey !== series.key ? 0.18 : 0.9} dot={false} isAnimationActive={false} connectNulls={false} />
+            ))
+            : stackOrder.flatMap((series) => (['__pos', '__neg'] as const).map((suffix) => chartType === 'area' ? (
+              <Area key={`${series.key}${suffix}`} dataKey={`${series.key}${suffix}`} stackId="stack" type={spec.options.interpolation === 'step' ? 'stepAfter' : 'linear'} fill={colorForKey(spec, series.key)} stroke={inspection.activeSeriesKey === series.key ? '#111827' : 'none'} fillOpacity={inspection.activeSeriesKey && inspection.activeSeriesKey !== series.key ? 0.18 : 0.72} isAnimationActive={false} connectNulls={false} />
+            ) : (
+              <Bar key={`${series.key}${suffix}`} dataKey={`${series.key}${suffix}`} stackId="stack" fill={colorForKey(spec, series.key)} fillOpacity={inspection.activeSeriesKey && inspection.activeSeriesKey !== series.key ? 0.18 : 0.78} isAnimationActive={false} />
+            )))}
           {showTargets && <Line type="linear" dataKey="target" dot={false} stroke="#7c3aed" strokeDasharray="5 4" strokeWidth={1.4} isAnimationActive={false} />}
           {showNetLine && <Line type="linear" dataKey="net" dot={false} stroke="#111827" strokeWidth={1.5} isAnimationActive={false} />}
         </Component>
