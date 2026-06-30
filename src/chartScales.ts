@@ -14,3 +14,32 @@ export function readableYTicks(min: number, max: number): number[] {
   if (!ticks.includes(0) && min < 0 && max > 0) ticks.push(0)
   return ticks.sort((a, b) => a - b)
 }
+
+export type BarXBand = {
+  year: number
+  x0: number
+  x1: number
+}
+
+export function barXDomain(years: number[]): [number, number] {
+  if (years.length === 0) return [0, 1]
+  if (years.length === 1) return [years[0] - 0.5, years[0] + 0.5]
+  const firstGap = years[1] - years[0]
+  const lastGap = years[years.length - 1] - years[years.length - 2]
+  return [years[0] - firstGap / 2, years[years.length - 1] + lastGap / 2]
+}
+
+export function barXBands(years: number[]): BarXBand[] {
+  if (years.length === 0) return []
+  if (years.length === 1) return [{ year: years[0], x0: years[0] - 0.5, x1: years[0] + 0.5 }]
+
+  return years.map((year, index) => {
+    const previous = years[index - 1]
+    const next = years[index + 1]
+    return {
+      year,
+      x0: previous == null ? year - (next - year) / 2 : (previous + year) / 2,
+      x1: next == null ? year + (year - previous) / 2 : (year + next) / 2,
+    }
+  })
+}

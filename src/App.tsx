@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
 import { ChartCard } from './components/ChartCard'
-import { specWithOptions } from './fixture'
+import { counterfactualSpec, lineSpec, roleResultCapSpec, roleResultOutputSpec, specWithDensity, specWithOptions } from './fixture'
 import { ObservablePlotStackChart } from './renderers/ObservablePlotStackChart'
 import { RechartsStackChart } from './renderers/RechartsStackChart'
 import { VisxStackChart } from './renderers/VisxStackChart'
-import type { ChartDensity, ChartType, StackChartSpec } from './types'
+import type { ChartDensity, ChartKind, ChartType, RendererProps, RoleResultMode, StackChartSpec } from './types'
 
 type ChartColumns = 1 | 2 | 3
 
@@ -24,9 +24,11 @@ const comparisonRows: Array<[string, string, string, string]> = [
   ['export/screenshot suitability', 'good', 'good', 'good'],
 ]
 
-function chartNotes(spec: StackChartSpec) {
-  return `${spec.options.interpolation} ${spec.options.density}; sign-changing stressors are stacked nearest zero on either side and retain one colour.`
-}
+const renderers: Array<{ name: string, Renderer: React.ComponentType<RendererProps> }> = [
+  { name: 'Recharts', Renderer: RechartsStackChart },
+  { name: 'Observable Plot', Renderer: ObservablePlotStackChart },
+  { name: 'visx + D3', Renderer: VisxStackChart },
+]
 
 export function App() {
   const [density, setDensity] = useState<ChartDensity>('dense')
@@ -36,6 +38,30 @@ export function App() {
   const [chartColumns, setChartColumns] = useState<ChartColumns>(3)
   const [resetKey, setResetKey] = useState(0)
   const spec = useMemo(() => specWithOptions(density, interpolation, useFullSeries), [density, interpolation, useFullSeries])
+  const decompositionSpec = useMemo(() => specWithDensity(counterfactualSpec, density), [density])
+  const trajectorySpec = useMemo(() => specWithDensity(lineSpec, density), [density])
+  const roleOutputSpec = useMemo(() => specWithDensity(roleResultOutputSpec, density), [density])
+  const roleCapSpec = useMemo(() => specWithDensity(roleResultCapSpec, density), [density])
+  const roleModeSpecs = useMemo<Partial<Record<RoleResultMode, StackChartSpec>>>(() => ({ output: roleOutputSpec, cap: roleCapSpec }), [roleCapSpec, roleOutputSpec])
+
+  function renderRow(title: string, description: string, chartKind: ChartKind, rowSpec: StackChartSpec, rowChartType: ChartType, modeSpecs?: Partial<Record<RoleResultMode, StackChartSpec>>) {
+    return (
+      <section className="chart-row" aria-labelledby={`${chartKind}-row-heading`}>
+        <div className="chart-row-heading">
+          <h2 id={`${chartKind}-row-heading`}>{title}</h2>
+          <p>{description}</p>
+        </div>
+        <div className="cards" style={{ '--chart-columns': chartColumns } as React.CSSProperties}>
+          {renderers.map(({ name, Renderer }) => (
+            <div className="chart-column" key={`${chartKind}-${name}`}>
+              <h3>{name}</h3>
+              <ChartCard name={name} spec={rowSpec} chartKind={chartKind} chartType={rowChartType} modeSpecs={modeSpecs} Renderer={Renderer} />
+            </div>
+          ))}
+        </div>
+      </section>
+    )
+  }
 
   return (
     <main className="chart-lab">
@@ -66,11 +92,12 @@ export function App() {
           <li>Operational outputs: compact web view plus high-resolution compact/full PNG export for each rendered chart card.</li>
         </ul>
       </section>
-      <p className="fixture-note">Fixture: {spec.series.length} Australia emissions sector/subsector series, irregular years [{spec.data.map((row) => row.year).join(', ')}], emissions, removals, offsets, sign changes, long labels, and non-linear transitions. Bars are included but less suitable for irregular time spacing because equal widths can read as categorical.</p>
-      <div className="cards" key={resetKey} style={{ '--chart-columns': chartColumns } as React.CSSProperties}>
-        <ChartCard name="Recharts" spec={spec} chartType={chartType} Renderer={RechartsStackChart} note={`Uses Recharts axes/areas with stackOffset="sign"; explicit shared stack geometry drives domains/inspection, but Recharts owns rendered stack internals. ${chartNotes(spec)}`} />
-        <ChartCard name="Observable Plot" spec={spec} chartType={chartType} Renderer={ObservablePlotStackChart} note={`Uses React effect embedding and explicit y0/y1 StackCell geometry. Clean grammar, less native React lifecycle. ${chartNotes(spec)}`} />
-        <ChartCard name="visx + D3" spec={spec} chartType={chartType} Renderer={VisxStackChart} note={`Reference-control implementation: explicit y0/y1 paths, transparent hit target, split positive/negative sign-changing segments. ${chartNotes(spec)}`} />
+      <p className="fixture-note">Fixtures: stack row uses {spec.series.length} Australia emissions sector/subsector series; decomposition row uses Base/Focus contributors; line row uses indexed scenario indicators. All keep irregular years [{spec.data.map((row) => row.year).join(', ')}]. Bars are included but less suitable for irregular time spacing because equal widths can read as categorical.</p>
+      <div key={resetKey}>
+        {renderRow('Stacked area/bar with overlays', 'Current webapp-style diverging emissions stack with net and NDC overlay controls.', 'stack', spec, chartType)}
+        {renderRow('Role result output/cap cards', 'Explorer Role results pattern: pathway output and pathway cap/share trajectories use a card-local mode selector in tools.', 'role-result', roleOutputSpec, chartType, roleModeSpecs)}
+        {renderRow('Counterfactual decomposition', 'Base-vs-Focus wedge: contributor geometry follows the same global area/bar chart-type toggle.', 'counterfactual', decompositionSpec, chartType)}
+        {renderRow('Line chart trajectories', 'Standard multi-series model output chart for demand, supply, residual emissions, and delivery indices.', 'line', trajectorySpec, 'area')}
       </div>
       <section className="comparison-panel">
         <h2>Comparison checklist</h2>

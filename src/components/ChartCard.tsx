@@ -4,20 +4,27 @@ import { toPng } from 'html-to-image'
 import { specForViewMode } from '../chartDerivedData'
 import { densityTokens } from '../density'
 import { stackBySign, yearsFromSpec } from '../stackUtils'
-import type { ChartType, ChartViewMode, InspectionState, RendererProps, StackChartSpec, StackDatum } from '../types'
+import type { ChartKind, ChartType, ChartViewMode, InspectionState, RendererProps, RoleResultMode, StackChartSpec, StackDatum } from '../types'
 import { useMeasure } from '../useMeasure'
 import { CompactLegend } from './CompactLegend'
 import { StackSliceInspector } from './StackSliceInspector'
 
 type Props = {
   name: string
-  note: string
   spec: StackChartSpec
+  chartKind: ChartKind
   chartType: ChartType
+  modeSpecs?: Partial<Record<RoleResultMode, StackChartSpec>>
   Renderer: React.ComponentType<RendererProps>
 }
 
-export function ChartCard({ name, note, spec, chartType, Renderer }: Props) {
+export function ChartCard({ name, spec, chartKind, chartType, modeSpecs, Renderer }: Props) {
+  const [roleResultMode, setRoleResultMode] = useState<RoleResultMode>('output')
+  const activeSpec = chartKind === 'role-result' ? (modeSpecs?.[roleResultMode] ?? spec) : spec
+  const effectiveChartKind: ChartKind = chartKind === 'role-result'
+    ? (roleResultMode === 'cap' ? 'line' : 'stack')
+    : chartKind
+  const effectiveChartType: ChartType = chartType
   const years = useMemo(() => yearsFromSpec(spec), [spec])
   const [inspection, setInspection] = useState<InspectionState>({ activeYear: years[Math.floor(years.length / 2)] ?? null, pinnedYear: null, activeSeriesKey: null })
   const [isolatedSeriesKeys, setIsolatedSeriesKeys] = useState<Set<string>>(new Set())
@@ -30,21 +37,21 @@ export function ChartCard({ name, note, spec, chartType, Renderer }: Props) {
   const selectedYear = inspection.pinnedYear ?? inspection.activeYear
   const [plotRef, plotSize] = useMeasure<HTMLDivElement>()
   const exportRef = useRef<HTMLElement | null>(null)
-  const tokens = densityTokens[spec.options.density]
+  const tokens = densityTokens[activeSpec.options.density]
   const isolatedSpec = useMemo<StackChartSpec>(() => {
-    if (isolatedSeriesKeys.size === 0) return spec
-    const isolatedSeries = spec.series.filter((series) => isolatedSeriesKeys.has(series.key))
+    if (isolatedSeriesKeys.size === 0) return activeSpec
+    const isolatedSeries = activeSpec.series.filter((series) => isolatedSeriesKeys.has(series.key))
     return {
-      ...spec,
+      ...activeSpec,
       series: isolatedSeries,
-      data: spec.data.map((row) => {
-        const isolatedRow: StackDatum = { year: row.year }
+      data: activeSpec.data.map((row) => {
+        const isolatedRow: StackDatum = { ...row }
         for (const series of isolatedSeries) isolatedRow[series.key] = row[series.key]
         return isolatedRow
       }),
     }
-  }, [isolatedSeriesKeys, spec])
-  const renderSpec = useMemo(() => specForViewMode(isolatedSpec, viewMode), [isolatedSpec, viewMode])
+  }, [activeSpec, isolatedSeriesKeys])
+  const renderSpec = useMemo(() => specForViewMode(isolatedSpec, effectiveChartKind === 'stack' ? viewMode : 'regular'), [effectiveChartKind, isolatedSpec, viewMode])
   useMemo(() => stackBySign(renderSpec.data, renderSpec.series), [renderSpec])
 
   async function saveImage(full = false) {
@@ -61,7 +68,7 @@ export function ChartCard({ name, note, spec, chartType, Renderer }: Props) {
     })
     if (full) flushSync(() => setForceFullExportLayout(false))
     const link = document.createElement('a')
-    link.download = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${chartType}${full ? '-full' : ''}.png`
+    link.download = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${chartKind}-${effectiveChartKind}-${effectiveChartType}${full ? '-full' : ''}.png`
     link.href = dataUrl
     link.click()
   }
@@ -89,25 +96,30 @@ export function ChartCard({ name, note, spec, chartType, Renderer }: Props) {
     if (inspection.pinnedYear != null) setInspectorOpen(true)
   }, [inspection.pinnedYear])
 
+  useEffect(() => {
+    setIsolatedSeriesKeys(new Set())
+    setInspection((state) => ({ ...state, activeSeriesKey: null, pinnedYear: null }))
+  }, [activeSpec])
+
   return (
     <section ref={exportRef} className="chart-card" style={{ '--inspector-width': `${tokens.inspectorWidth}px`, '--header-height': `${tokens.headerHeight}px` } as React.CSSProperties}>
       <header className="chart-card-header">
-        <div>
-          <h2>{name}</h2>
-          <p>{spec.title} · {spec.unit}{isolatedSeriesKeys.size > 0 ? ` · isolated ${isolatedSeriesKeys.size}/${spec.series.length}` : ''}</p>
-        </div>
+        <h2>{activeSpec.title} · {activeSpec.unit}{isolatedSeriesKeys.size > 0 ? ` · isolated ${isolatedSeriesKeys.size}/${activeSpec.series.length}` : ''}</h2>
         <div className="chart-tools" data-export-ignore="true">
-          <span>{inspection.pinnedYear == null ? 'hover selects' : `pinned ${inspection.pinnedYear}`}</span>
-          <button type="button" onClick={() => setToolsOpen((open) => !open)} aria-expanded={toolsOpen}>tools</button>
+          {inspection.pinnedYear != null && <span>pinned {inspection.pinnedYear}</span>}
+          <button type="button" className="tools-trigger" onClick={() => setToolsOpen((open) => !open)} aria-expanded={toolsOpen}>
+            tools ▾
+          </button>
           {toolsOpen && (
             <div className="tools-popover" role="dialog" aria-label={`${name} tools`}>
               <div className="tools-popover-header">
                 <strong>Tools</strong>
                 <button type="button" onClick={() => setToolsOpen(false)}>close</button>
               </div>
-              <label>mode <select value={viewMode} onChange={(event) => setViewMode(event.target.value as ChartViewMode)}><option value="regular">regular</option><option value="cumulative">cumulative</option></select></label>
-              <label><input type="checkbox" checked={showNetLine} onChange={(event) => setShowNetLine(event.target.checked)} /> show net line</label>
-              <label><input type="checkbox" checked={showTargets} onChange={(event) => setShowTargets(event.target.checked)} /> show NDC overlay</label>
+              {chartKind === 'role-result' && <label>role mode <select value={roleResultMode} onChange={(event) => setRoleResultMode(event.target.value as RoleResultMode)}><option value="output">output</option><option value="cap">cap</option></select></label>}
+              {effectiveChartKind === 'stack' && chartKind !== 'role-result' && <label>mode <select value={viewMode} onChange={(event) => setViewMode(event.target.value as ChartViewMode)}><option value="regular">regular</option><option value="cumulative">cumulative</option></select></label>}
+              {effectiveChartKind === 'stack' && <label><input type="checkbox" checked={showNetLine} onChange={(event) => setShowNetLine(event.target.checked)} /> show net line</label>}
+              {effectiveChartKind === 'stack' && chartKind !== 'role-result' && <label><input type="checkbox" checked={showTargets} onChange={(event) => setShowTargets(event.target.checked)} /> show NDC overlay</label>}
               <button type="button" onClick={() => void saveImage(false)}>save image</button>
               <button type="button" onClick={() => void saveImage(true)}>save full</button>
             </div>
@@ -115,18 +127,17 @@ export function ChartCard({ name, note, spec, chartType, Renderer }: Props) {
         </div>
       </header>
       {isolatedSeriesKeys.size > 0 && <div className="isolation-banner">Only isolated traces are plotted. Click legend rows to add/remove traces, or use show all.</div>}
-      <CompactLegend spec={spec} activeSeriesKey={inspection.activeSeriesKey} isolatedSeriesKeys={isolatedSeriesKeys} forceFull={forceFullExportLayout} setIsolatedSeriesKeys={setIsolatedSeriesKeys} setInspection={setInspection} />
+      <CompactLegend spec={activeSpec} activeSeriesKey={inspection.activeSeriesKey} isolatedSeriesKeys={isolatedSeriesKeys} forceFull={forceFullExportLayout} setIsolatedSeriesKeys={setIsolatedSeriesKeys} setInspection={setInspection} />
       <div className="chart-card-body">
         <div className="plot-column">
           <div className="plot-host" ref={plotRef}>
             {plotSize.width > 20 && plotSize.height > 20 && (
-              <Renderer spec={renderSpec} chartType={chartType} viewMode={viewMode} showNetLine={showNetLine} showTargets={showTargets} width={plotSize.width} height={plotSize.height} inspection={inspection} setInspection={setInspection} />
+              <Renderer spec={renderSpec} chartKind={effectiveChartKind} chartType={effectiveChartType} viewMode={viewMode} showNetLine={showNetLine} showTargets={showTargets} width={plotSize.width} height={plotSize.height} inspection={inspection} setInspection={setInspection} />
             )}
           </div>
         </div>
       </div>
       <StackSliceInspector spec={renderSpec} selectedYear={selectedYear} activeSeriesKey={inspection.activeSeriesKey} isOpen={inspectorOpen} forceFull={forceFullExportLayout} onOpenChange={setInspectorOpen} setInspection={setInspection} />
-      <p className="renderer-note">{note}</p>
     </section>
   )
 }

@@ -32,7 +32,7 @@ export const fixtureSeries: StackSeriesMeta[] = [
 ]
 
 export const baseSpec: StackChartSpec = {
-  title: 'Australia emissions balance',
+  title: 'Emissions balance',
   subtitle: 'Prototype-only fixture: sector/subsector emissions, removals, offsets, sign-changing stressors, and irregular model years to 2070.',
   unit: 'Mt CO₂-e',
   x: { key: 'year', label: 'Model year', type: 'number' },
@@ -73,6 +73,130 @@ export function specWithOptions(
       ...baseSpec.options,
       density,
       interpolation,
+      maxInlineLegendItems: density === 'dense' ? 6 : 8,
+      maxInspectorRows: density === 'dense' ? 9 : 12,
+    },
+  }
+}
+
+const counterfactualSeries: StackSeriesMeta[] = [
+  { key: 'activityGrowth', label: 'Activity growth and service-demand rebound', shortLabel: 'Activity', group: 'Drivers' },
+  { key: 'fuelSwitching', label: 'Fuel switching and electrification', shortLabel: 'Fuel switch', group: 'Mitigation' },
+  { key: 'efficiency', label: 'Operational and embodied efficiency', shortLabel: 'Efficiency', group: 'Mitigation' },
+  { key: 'cleanSupply', label: 'Clean supply and residual electricity decarbonisation', shortLabel: 'Clean supply', group: 'Mitigation' },
+  { key: 'upstream', label: 'Upstream and cross-sector interactions', shortLabel: 'Upstream', group: 'Interactions' },
+  { key: 'residual', label: 'Closure residual and solver reallocation', shortLabel: 'Residual', group: 'Diagnostics' },
+]
+
+export const counterfactualSpec: StackChartSpec = {
+  title: 'Base vs Focus decomposition',
+  subtitle: 'Base and Focus totals with positive and negative contributors stacked from the Base counterfactual line.',
+  unit: 'Mt CO₂-e',
+  x: baseSpec.x,
+  series: counterfactualSeries,
+  data: [
+    { year: 2025, counterfactual: 410, factual: 407, activityGrowth: 6, fuelSwitching: -2, efficiency: -4, cleanSupply: -2, upstream: 1, residual: -2 },
+    { year: 2026, counterfactual: 402, factual: 394, activityGrowth: 8, fuelSwitching: -4, efficiency: -7, cleanSupply: -5, upstream: 2, residual: -2 },
+    { year: 2027, counterfactual: 392, factual: 378, activityGrowth: 10, fuelSwitching: -8, efficiency: -10, cleanSupply: -8, upstream: 3, residual: -1 },
+    { year: 2030, counterfactual: 360, factual: 318, activityGrowth: 18, fuelSwitching: -26, efficiency: -23, cleanSupply: -16, upstream: 7, residual: -2 },
+    { year: 2035, counterfactual: 305, factual: 214, activityGrowth: 28, fuelSwitching: -54, efficiency: -42, cleanSupply: -30, upstream: 11, residual: -4 },
+    { year: 2040, counterfactual: 252, factual: 118, activityGrowth: 35, fuelSwitching: -74, efficiency: -55, cleanSupply: -48, upstream: 15, residual: -7 },
+    { year: 2050, counterfactual: 170, factual: -12, activityGrowth: 43, fuelSwitching: -98, efficiency: -72, cleanSupply: -72, upstream: 23, residual: -6 },
+    { year: 2060, counterfactual: 128, factual: -54, activityGrowth: 36, fuelSwitching: -88, efficiency: -65, cleanSupply: -82, upstream: 25, residual: -8 },
+    { year: 2070, counterfactual: 106, factual: -78, activityGrowth: 30, fuelSwitching: -78, efficiency: -58, cleanSupply: -88, upstream: 18, residual: -8 },
+  ],
+  options: baseSpec.options,
+}
+
+const lineSeries: StackSeriesMeta[] = [
+  { key: 'finalEnergy', label: 'Final energy demand', shortLabel: 'Final energy', group: 'Demand' },
+  { key: 'electricity', label: 'Electricity supply', shortLabel: 'Electricity', group: 'Supply' },
+  { key: 'hydrogen', label: 'Hydrogen and e-fuel production', shortLabel: 'H₂/e-fuels', group: 'Supply' },
+  { key: 'residualEmissions', label: 'Residual emissions index', shortLabel: 'Residual CO₂e', group: 'Emissions' },
+  { key: 'abatement', label: 'Cumulative abatement delivery index', shortLabel: 'Abatement', group: 'Delivery' },
+]
+
+export const lineSpec: StackChartSpec = {
+  title: 'Scenario indicators',
+  subtitle: 'Representative output/cap/time-series chart with several model indicators indexed to 2025 = 100.',
+  unit: 'index',
+  x: baseSpec.x,
+  series: lineSeries,
+  data: [
+    { year: 2025, finalEnergy: 100, electricity: 100, hydrogen: 1, residualEmissions: 100, abatement: 0 },
+    { year: 2026, finalEnergy: 102, electricity: 106, hydrogen: 2, residualEmissions: 96, abatement: 5 },
+    { year: 2027, finalEnergy: 104, electricity: 112, hydrogen: 4, residualEmissions: 91, abatement: 11 },
+    { year: 2030, finalEnergy: 108, electricity: 132, hydrogen: 12, residualEmissions: 76, abatement: 30 },
+    { year: 2035, finalEnergy: 112, electricity: 168, hydrogen: 36, residualEmissions: 52, abatement: 58 },
+    { year: 2040, finalEnergy: 110, electricity: 205, hydrogen: 62, residualEmissions: 31, abatement: 78 },
+    { year: 2050, finalEnergy: 102, electricity: 266, hydrogen: 106, residualEmissions: 4, abatement: 100 },
+    { year: 2060, finalEnergy: 98, electricity: 312, hydrogen: 135, residualEmissions: -12, abatement: 112 },
+    { year: 2070, finalEnergy: 95, electricity: 348, hydrogen: 148, residualEmissions: -20, abatement: 118 },
+  ],
+  options: baseSpec.options,
+}
+
+const roleResultSeries: StackSeriesMeta[] = [
+  { key: 'transshipment', label: 'Trans-shipment handling pathway output', shortLabel: 'Trans-shipment', group: 'Pathway' },
+  { key: 'electricDrive', label: 'Electric-drive compression pathway output', shortLabel: 'Electric-drive', group: 'Pathway' },
+  { key: 'lngTrainFlue', label: 'LNG-train flue-gas capture pathway output', shortLabel: 'LNG-train flue', group: 'Pathway' },
+]
+
+export const roleResultOutputSpec: StackChartSpec = {
+  title: 'Role results · Export LNG output',
+  subtitle: 'Explorer-style pathway output card: stacked method output by model year with a cap/reference line available in the same card tools.',
+  unit: 'Mt LNG',
+  x: baseSpec.x,
+  series: roleResultSeries,
+  data: [
+    { year: 2025, transshipment: 78, electricDrive: 8, lngTrainFlue: 0 },
+    { year: 2026, transshipment: 80, electricDrive: 10, lngTrainFlue: 0 },
+    { year: 2027, transshipment: 81, electricDrive: 12, lngTrainFlue: 0 },
+    { year: 2030, transshipment: 84, electricDrive: 18, lngTrainFlue: 0 },
+    { year: 2035, transshipment: 76, electricDrive: 34, lngTrainFlue: 8 },
+    { year: 2040, transshipment: 63, electricDrive: 47, lngTrainFlue: 22 },
+    { year: 2050, transshipment: 26, electricDrive: 60, lngTrainFlue: 40 },
+    { year: 2060, transshipment: 15, electricDrive: 54, lngTrainFlue: 48 },
+    { year: 2070, transshipment: 9, electricDrive: 48, lngTrainFlue: 52 },
+  ],
+  options: baseSpec.options,
+}
+
+const roleCapSeries: StackSeriesMeta[] = [
+  { key: 'transshipmentShare', label: 'Trans-shipment share', shortLabel: 'Trans-ship share', colorKey: 'transshipment' },
+  { key: 'transshipmentCap', label: 'Trans-shipment cap', shortLabel: 'Trans-ship cap', colorKey: 'transshipment' },
+  { key: 'electricDriveShare', label: 'Electric-drive share', shortLabel: 'Elec-drive share', colorKey: 'electricDrive' },
+  { key: 'electricDriveCap', label: 'Electric-drive cap', shortLabel: 'Elec-drive cap', colorKey: 'electricDrive' },
+  { key: 'lngTrainFlueShare', label: 'LNG-train flue share', shortLabel: 'LNG flue share', colorKey: 'lngTrainFlue' },
+  { key: 'lngTrainFlueCap', label: 'LNG-train flue cap', shortLabel: 'LNG flue cap', colorKey: 'lngTrainFlue' },
+]
+
+export const roleResultCapSpec: StackChartSpec = {
+  title: 'Role results · Export LNG caps',
+  subtitle: 'Explorer-style cap mode: each pathway share is compared with its configured max-share cap.',
+  unit: '% of output',
+  x: baseSpec.x,
+  series: roleCapSeries,
+  data: [
+    { year: 2025, transshipmentShare: 91, transshipmentCap: 100, electricDriveShare: 9, electricDriveCap: 0, lngTrainFlueShare: 0, lngTrainFlueCap: 0 },
+    { year: 2026, transshipmentShare: 89, transshipmentCap: 100, electricDriveShare: 11, electricDriveCap: 4, lngTrainFlueShare: 0, lngTrainFlueCap: 0 },
+    { year: 2027, transshipmentShare: 87, transshipmentCap: 100, electricDriveShare: 13, electricDriveCap: 8, lngTrainFlueShare: 0, lngTrainFlueCap: 0 },
+    { year: 2030, transshipmentShare: 82, transshipmentCap: 100, electricDriveShare: 18, electricDriveCap: 18, lngTrainFlueShare: 0, lngTrainFlueCap: 0 },
+    { year: 2035, transshipmentShare: 64, transshipmentCap: 90, electricDriveShare: 29, electricDriveCap: 34, lngTrainFlueShare: 7, lngTrainFlueCap: 7 },
+    { year: 2040, transshipmentShare: 48, transshipmentCap: 75, electricDriveShare: 36, electricDriveCap: 47, lngTrainFlueShare: 17, lngTrainFlueCap: 17 },
+    { year: 2050, transshipmentShare: 21, transshipmentCap: 40, electricDriveShare: 48, electricDriveCap: 60, lngTrainFlueShare: 32, lngTrainFlueCap: 32 },
+    { year: 2060, transshipmentShare: 13, transshipmentCap: 25, electricDriveShare: 46, electricDriveCap: 54, lngTrainFlueShare: 41, lngTrainFlueCap: 41 },
+    { year: 2070, transshipmentShare: 8, transshipmentCap: 15, electricDriveShare: 44, electricDriveCap: 48, lngTrainFlueShare: 48, lngTrainFlueCap: 48 },
+  ],
+  options: baseSpec.options,
+}
+
+export function specWithDensity(spec: StackChartSpec, density: StackChartSpec['options']['density']): StackChartSpec {
+  return {
+    ...spec,
+    options: {
+      ...spec.options,
+      density,
       maxInlineLegendItems: density === 'dense' ? 6 : 8,
       maxInspectorRows: density === 'dense' ? 9 : 12,
     },
