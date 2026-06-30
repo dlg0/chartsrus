@@ -49,11 +49,14 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
 
   const data = useMemo<Data[]>(() => {
     const opacityFor = (key: string) => (activeKey && activeKey !== key ? DIMMED_OPACITY : ACTIVE_OPACITY)
-    // Tooltip on: a single closest-trace label (bands show their name, the net/target lines show a value).
-    // x-unified over tiled bands showed a confusing transparent subset, so closest mode is used instead.
-    // Off: no hover label at all - the docked inspector is the readout.
-    const bandHoverProps = showNativeTooltip ? { hovertemplate: '%{fullData.name}<extra></extra>' } : { hoverinfo: 'none' as const }
-    const overlayHoverProps = showNativeTooltip ? { hovertemplate: `%{fullData.name}: %{y:.0f} ${spec.unit}<extra></extra>` } : { hoverinfo: 'skip' as const }
+    // Tooltip on: every trace shows "name: value". Bars, lines and the net/target lines read the value
+    // straight from %{y}; area bands can't (their y is a ring coordinate), so the per-year value rides in
+    // customdata. Off: no hover label - the docked inspector is the readout.
+    const off = { hoverinfo: 'none' as const }
+    const valueTemplate = `%{fullData.name}: %{y:.0f} ${spec.unit}<extra></extra>`
+    const valueHoverProps = showNativeTooltip ? { hovertemplate: valueTemplate } : off
+    const areaHoverProps = showNativeTooltip ? { hovertemplate: `%{fullData.name}: %{customdata:.0f} ${spec.unit}<extra></extra>` } : off
+    const overlayHoverProps = showNativeTooltip ? { hovertemplate: valueTemplate } : { hoverinfo: 'skip' as const }
     // Full-width tapered bands tile without the triangular gaps that per-segment polygons leave at
     // sign changes; one legend entry per series (the first band) drives the grouped legend toggle.
     const buildAreas = (): Data[] => {
@@ -66,11 +69,12 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
           mode: 'lines',
           x: ring.x,
           y: ring.y,
+          customdata: ring.custom,
           fill: 'toself',
           fillcolor: color,
           line: { color, width: 0.5 },
           opacity: opacityFor(band.key),
-          ...bandHoverProps,
+          ...areaHoverProps,
           legendgroup: band.key,
           name: band.shortLabel,
           showlegend: showNativeLegend && bands.findIndex((other) => other.key === band.key) === index,
@@ -88,7 +92,7 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
         width: barWidth,
         marker: { color: colorForKey(spec, series.key), line: { width: 0 } },
         opacity: opacityFor(series.key),
-        ...bandHoverProps,
+        ...valueHoverProps,
         legendgroup: series.key,
         name: series.shortLabel,
         showlegend: showNativeLegend,
@@ -103,7 +107,7 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
       y: spec.data.map((row) => row[series.key]),
       line: { color: colorForKey(spec, series.key), width: 1.5, shape: spec.options.interpolation === 'step' ? 'hv' : 'linear' },
       opacity: opacityFor(series.key),
-      ...bandHoverProps,
+      ...valueHoverProps,
       legendgroup: series.key,
       name: series.shortLabel,
       showlegend: showNativeLegend,
@@ -139,8 +143,9 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
       modebar: { bgcolor: 'rgba(255,255,255,0)', color: '#b9c0cc', activecolor: '#5b6573' },
       // Solid label box so the optional tooltip is readable (the default was effectively transparent).
       hoverlabel: { bgcolor: '#ffffff', bordercolor: '#cbd3df', font: { size: tokens.axisFontSize, color: '#172033' } },
-      // Tooltip on: a single closest-trace label. Off: 'x' just feeds the monotonic cursor spike (no label).
-      hovermode: showNativeTooltip ? 'closest' : 'x',
+      // Default to a single closest-trace tooltip; the modebar's show-nearest/show-all buttons switch this
+      // and uirevision keeps the choice. Whether a label shows is gated by hovertemplate/hoverinfo, not here.
+      hovermode: 'closest',
       dragmode: 'zoom',
       barmode: 'overlay',
       // Keep pan/zoom and legend visibility toggles across data updates so hover redraws never reset them.
@@ -183,11 +188,11 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
     responsive: false,
     scrollZoom: false,
     displayModeBar: 'hover',
-    // Spell out the modebar so the select-nearest (hoverClosestCartesian) toggle is guaranteed to appear
-    // (Plotly was dropping it from the defaults); the PNG export is left out in favour of the card's own
-    // save image / save full, along with the lasso/box-select and zoom-step noise.
+    // Spell out the modebar so the show-nearest (hoverClosestCartesian) and show-all (hoverCompareCartesian)
+    // hover toggles are guaranteed to appear (Plotly was dropping them from the defaults); the PNG export is
+    // left out in favour of the card's own save image / save full, along with the lasso/box-select noise.
     modeBarButtons: [
-      ['zoom2d', 'pan2d', 'resetScale2d', 'hoverClosestCartesian'],
+      ['zoom2d', 'pan2d', 'resetScale2d', 'hoverClosestCartesian', 'hoverCompareCartesian'],
       [
         {
           name: 'fullscreen',

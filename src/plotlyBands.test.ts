@@ -21,6 +21,12 @@ describe('bandRing', () => {
   })
 
   it('returns an empty ring for an empty segment', () => {
-    expect(bandRing([], 'linear')).toEqual({ x: [], y: [] })
+    expect(bandRing([], 'linear')).toEqual({ x: [], y: [], custom: [] })
+  })
+
+  it('carries the band value (y1 - y0) per vertex in custom for hover labels', () => {
+    const ring = bandRing([cell(2025, 0, 10), cell(2030, 0, 14)], 'linear')
+    // top edge values [10, 14] then bottom edge values reversed [14, 10].
+    expect(ring.custom).toEqual([10, 14, 14, 10])
   })
 })
