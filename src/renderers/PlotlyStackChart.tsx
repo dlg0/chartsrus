@@ -140,8 +140,9 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
       plot_bgcolor: 'rgba(0,0,0,0)',
       showlegend: showNativeLegend,
       legend: { font: { size: tokens.axisFontSize }, groupclick: 'togglegroup' },
-      // Lighter, less obtrusive modebar icons over the dense plot.
-      modebar: { bgcolor: 'rgba(255,255,255,0)', color: '#b9c0cc', activecolor: '#5b6573' },
+      // Lighter, less obtrusive modebar icons over the dense plot, on a faint backing so the cursor line
+      // behind them does not bleed through.
+      modebar: { bgcolor: 'rgba(255,255,255,0.85)', color: '#b9c0cc', activecolor: '#5b6573' },
       // Solid label box so the optional tooltip is readable (the default was effectively transparent).
       hoverlabel: { bgcolor: '#ffffff', bordercolor: '#cbd3df', font: { size: tokens.axisFontSize, color: '#172033' } },
       // Default to a single closest-trace tooltip; the modebar's show-nearest/show-all buttons switch this

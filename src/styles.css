@@ -20,7 +20,7 @@ button { cursor: pointer; }
 .chart-card-header h2 { margin: 0; font-size: 13px; }
 .chart-card-header p, .chart-card-header span { margin: 0; font-size: 10px; color: #667085; }
 .chart-card-status { font-size: 10px; color: #667085; white-space: nowrap; }
-.card-modebar { position: absolute; top: 4px; right: 4px; z-index: 6; display: inline-flex; gap: 1px; opacity: 0; transition: opacity 0.12s ease; }
+.card-modebar { position: absolute; top: 4px; right: 4px; z-index: 6; display: inline-flex; gap: 1px; padding: 1px; border-radius: 6px; background: rgba(255, 255, 255, 0.85); box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.06); opacity: 0; transition: opacity 0.12s ease; }
 .chart-card:hover .card-modebar, .chart-card:focus-within .card-modebar { opacity: 1; }
 .card-modebar-btn { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 22px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: #b9c0cc; }
 .card-modebar-btn:hover { color: #5b6573; background: rgba(91, 101, 115, 0.1); }
