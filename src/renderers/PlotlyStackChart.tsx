@@ -16,6 +16,7 @@ const DIMMED_OPACITY = 0.18
 const FULLSCREEN_ICON = { width: 24, height: 24, path: 'M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z' }
 const TOOLTIP_ICON = { width: 24, height: 24, path: 'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z' }
 const LEGEND_ICON = { width: 24, height: 24, path: 'M3 6h4v2H3V6zm6 0h12v2H9V6zM3 11h4v2H3v-2zm6 0h12v2H9v-2zM3 16h4v2H3v-2zm6 0h12v2H9v-2z' }
+const TOOLS_ICON = { width: 24, height: 24, path: 'M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z' }
 
 // Plotly renderer. Like the Observable Plot version it embeds a non-React chart through a ref and
 // drives the shared docked inspector from its own pointer maths (stable nearest-year + cell-at-point),
@@ -203,6 +204,12 @@ export function PlotlyStackChart({ spec, chartType, viewMode, showNetLine, showT
             if (document.fullscreenElement) void document.exitFullscreen()
             else if (card instanceof HTMLElement) void card.requestFullscreen().catch(() => {})
           },
+        },
+        {
+          name: 'tools',
+          title: 'Tools (mode, net line, NDC overlay, export)',
+          icon: TOOLS_ICON,
+          click: (gd: HTMLElement) => gd.closest('.chart-card')?.dispatchEvent(new CustomEvent('chart-tools-toggle', { bubbles: true })),
         },
         {
           name: 'toggle-tooltip',

@@ -73,7 +73,7 @@ export function App() {
         <ChartCard name="Recharts" spec={spec} chartType={chartType} Renderer={RechartsStackChart} note={`Uses Recharts axes/areas with stackOffset="sign"; explicit shared stack geometry drives domains/inspection, but Recharts owns rendered stack internals. ${chartNotes(spec)}`} />
         <ChartCard name="Observable Plot" spec={spec} chartType={chartType} Renderer={ObservablePlotStackChart} note={`Uses React effect embedding and explicit y0/y1 StackCell geometry. Clean grammar, less native React lifecycle. ${chartNotes(spec)}`} />
         <ChartCard name="visx + D3" spec={spec} chartType={chartType} Renderer={VisxStackChart} note={`Reference-control implementation: explicit y0/y1 paths, transparent hit target, split positive/negative sign-changing segments. ${chartNotes(spec)}`} />
-        <ChartCard name="Plotly" spec={spec} chartType={chartType} Renderer={PlotlyStackChart} note={`Plotly.react draws explicit y0/y1 fill:"toself" bands with native grid, axes, and an x spikeline cursor; events feed the shared inspector, uirevision preserves zoom, and the modebar adds native zoom/pan/reset and a 3x PNG export. ${chartNotes(spec)}`} />
+        <ChartCard name="Plotly" spec={spec} chartType={chartType} Renderer={PlotlyStackChart} nativeModebar note={`Plotly.react draws explicit y0/y1 fill:"toself" bands with native grid, axes, and an x spikeline cursor; events feed the shared inspector, uirevision preserves zoom, and the modebar carries native zoom/pan/reset plus full-screen, tools, tooltip and legend toggles. ${chartNotes(spec)}`} />
       </div>
       <section className="comparison-panel">
         <h2>Comparison checklist</h2>

@@ -6,6 +6,7 @@ import { densityTokens } from '../density'
 import { stackBySign, yearsFromSpec } from '../stackUtils'
 import type { ChartType, ChartViewMode, InspectionState, RendererProps, StackChartSpec, StackDatum } from '../types'
 import { useMeasure } from '../useMeasure'
+import { CardModebar } from './CardModebar'
 import { CompactLegend } from './CompactLegend'
 import { StackSliceInspector } from './StackSliceInspector'
 
@@ -15,9 +16,13 @@ type Props = {
   spec: StackChartSpec
   chartType: ChartType
   Renderer: React.ComponentType<RendererProps>
+  // When the renderer has its own modebar (Plotly), it carries the tools/full-screen icons itself and
+  // toggles the tools popover by dispatching a bubbling 'chart-tools-toggle' event; otherwise this card
+  // shows its own floating CardModebar.
+  nativeModebar?: boolean
 }
 
-export function ChartCard({ name, note, spec, chartType, Renderer }: Props) {
+export function ChartCard({ name, note, spec, chartType, Renderer, nativeModebar = false }: Props) {
   const years = useMemo(() => yearsFromSpec(spec), [spec])
   const [inspection, setInspection] = useState<InspectionState>({ activeYear: years[Math.floor(years.length / 2)] ?? null, pinnedYear: null, activeSeriesKey: null })
   const [isolatedSeriesKeys, setIsolatedSeriesKeys] = useState<Set<string>>(new Set())
@@ -85,6 +90,16 @@ export function ChartCard({ name, note, spec, chartType, Renderer }: Props) {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
   }, [])
 
+  // Plotly's native-modebar tools button can't reach this component's state directly, so it dispatches a
+  // bubbling DOM event on the card that we toggle the popover from.
+  useEffect(() => {
+    const el = exportRef.current
+    if (!nativeModebar || !el) return
+    const handler = () => setToolsOpen((open) => !open)
+    el.addEventListener('chart-tools-toggle', handler)
+    return () => el.removeEventListener('chart-tools-toggle', handler)
+  }, [nativeModebar])
+
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
@@ -119,12 +134,15 @@ export function ChartCard({ name, note, spec, chartType, Renderer }: Props) {
           <h2>{name}</h2>
           <p>{spec.title} · {spec.unit}{isolatedSeriesKeys.size > 0 ? ` · isolated ${isolatedSeriesKeys.size}/${spec.series.length}` : ''}</p>
         </div>
-        <div className="chart-tools" data-export-ignore="true">
-          <span>{inspection.pinnedYear == null ? 'hover selects' : `pinned ${inspection.pinnedYear}`}</span>
-          <button type="button" onClick={() => void toggleFullscreen()} aria-pressed={isFullscreen}>{isFullscreen ? 'exit full screen' : 'fullscreen'}</button>
-          <button type="button" onClick={() => setToolsOpen((open) => !open)} aria-expanded={toolsOpen}>tools</button>
+        <span className="chart-card-status" data-export-ignore="true">{inspection.pinnedYear == null ? 'hover selects' : `pinned ${inspection.pinnedYear}`}</span>
+      </header>
+      {isolatedSeriesKeys.size > 0 && <div className="isolation-banner">Only isolated traces are plotted. Click legend rows to add/remove traces, or use show all.</div>}
+      <CompactLegend spec={spec} activeSeriesKey={inspection.activeSeriesKey} isolatedSeriesKeys={isolatedSeriesKeys} forceFull={showFullDetail} setIsolatedSeriesKeys={setIsolatedSeriesKeys} setInspection={setInspection} />
+      <div className="chart-card-body">
+        <div className="plot-column">
+          {!nativeModebar && <CardModebar isFullscreen={isFullscreen} toolsOpen={toolsOpen} onToggleTools={() => setToolsOpen((open) => !open)} onToggleFullscreen={() => void toggleFullscreen()} />}
           {toolsOpen && (
-            <div className="tools-popover" role="dialog" aria-label={`${name} tools`}>
+            <div className="tools-popover" role="dialog" aria-label={`${name} tools`} data-export-ignore="true">
               <div className="tools-popover-header">
                 <strong>Tools</strong>
                 <button type="button" onClick={() => setToolsOpen(false)}>close</button>
@@ -136,12 +154,6 @@ export function ChartCard({ name, note, spec, chartType, Renderer }: Props) {
               <button type="button" onClick={() => void saveImage(true)}>save full</button>
             </div>
           )}
-        </div>
-      </header>
-      {isolatedSeriesKeys.size > 0 && <div className="isolation-banner">Only isolated traces are plotted. Click legend rows to add/remove traces, or use show all.</div>}
-      <CompactLegend spec={spec} activeSeriesKey={inspection.activeSeriesKey} isolatedSeriesKeys={isolatedSeriesKeys} forceFull={showFullDetail} setIsolatedSeriesKeys={setIsolatedSeriesKeys} setInspection={setInspection} />
-      <div className="chart-card-body">
-        <div className="plot-column">
           <div className="plot-host" ref={plotRef}>
             {plotSize.width > 20 && plotSize.height > 20 && (
               <Renderer spec={renderSpec} chartType={chartType} viewMode={viewMode} showNetLine={showNetLine} showTargets={showTargets} width={plotSize.width} height={plotSize.height} inspection={inspection} setInspection={setInspection} />

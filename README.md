@@ -55,6 +55,7 @@ Look for these behaviours in the `ChartLab` page:
 - `save image` on each chart card exports a high-resolution PNG of that compact card as displayed;
 - `save full` exports the chart with all legend items and all inspector rows expanded inside the saved image;
 - `fullscreen` on each chart card expands that card to fill the screen and forces the same full detail (every legend item and every inspector row visible) while the plot grows to fit; each renderer resizes into the larger area, Plotly included;
+- every plot carries a floating modebar-style icon toolbar (top-right, revealed on hover) for full screen and tools; Plotly folds these into its native modebar, the other three renderers get a matching custom toolbar, and the tools popover (mode, net line, NDC overlay, save image/full) is the same for all;
 - one, two, or three chart columns via the columns control;
 - docked slice-first inspector for the selected model year;
 - pointer inspection by nearest scaled year, not nearest polygon;

@@ -19,19 +19,22 @@ button { cursor: pointer; }
 .chart-card-header { display: flex; align-items: center; justify-content: space-between; min-height: var(--header-height); padding: 3px 8px; border-bottom: 1px solid #e3e7ee; }
 .chart-card-header h2 { margin: 0; font-size: 13px; }
 .chart-card-header p, .chart-card-header span { margin: 0; font-size: 10px; color: #667085; }
-.chart-tools { position: relative; display: inline-flex; align-items: center; gap: 6px; justify-content: end; }
-.chart-tools label { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; color: #344054; }
-.chart-tools select { border: 1px solid #cbd3df; border-radius: 4px; background: white; font-size: 10px; }
-.chart-tools input { margin: 0; }
-.chart-tools button { border: 1px solid #cbd3df; border-radius: 4px; background: white; padding: 2px 5px; font-size: 10px; color: #344054; }
-.tools-popover { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; display: grid; gap: 7px; min-width: 185px; padding: 8px; background: white; border: 1px solid #cbd3df; border-radius: 8px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18); }
+.chart-card-status { font-size: 10px; color: #667085; white-space: nowrap; }
+.card-modebar { position: absolute; top: 4px; right: 4px; z-index: 6; display: inline-flex; gap: 1px; opacity: 0; transition: opacity 0.12s ease; }
+.chart-card:hover .card-modebar, .chart-card:focus-within .card-modebar { opacity: 1; }
+.card-modebar-btn { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 22px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: #b9c0cc; }
+.card-modebar-btn:hover { color: #5b6573; background: rgba(91, 101, 115, 0.1); }
+.card-modebar-btn svg { width: 15px; height: 15px; display: block; }
+.tools-popover { position: absolute; top: 30px; right: 4px; z-index: 20; display: grid; gap: 7px; min-width: 185px; padding: 8px; background: white; border: 1px solid #cbd3df; border-radius: 8px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18); }
+.tools-popover label { display: inline-flex; align-items: center; gap: 3px; justify-content: space-between; font-size: 10px; color: #344054; }
+.tools-popover select { border: 1px solid #cbd3df; border-radius: 4px; background: white; font-size: 10px; }
+.tools-popover input { margin: 0; }
+.tools-popover button { width: 100%; text-align: left; border: 1px solid #cbd3df; border-radius: 4px; background: white; padding: 2px 5px; font-size: 10px; color: #344054; cursor: pointer; }
 .tools-popover-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 11px; }
-.tools-popover label { justify-content: space-between; }
-.tools-popover button { width: 100%; text-align: left; }
 .tools-popover-header button { width: auto; border: 0; padding: 0; color: #315caa; }
 .isolation-banner { padding: 3px 8px; background: #e8f0ff; color: #143b7d; border-bottom: 1px solid #c8d8f6; font-size: 10px; font-weight: 700; }
 .chart-card-body { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 248px; }
-.plot-column { min-width: 0; }
+.plot-column { min-width: 0; position: relative; }
 .plot-host, .recharts-wrap, .observable-wrap, .plotly-wrap { width: 100%; height: 248px; }
 .plotly-wrap .modebar { background: transparent; }
 .chart-svg { display: block; }
