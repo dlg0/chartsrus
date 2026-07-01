@@ -1,6 +1,8 @@
 export type ChartDensity = 'comfortable' | 'compact' | 'dense'
 export type ChartType = 'area' | 'bar' | 'line'
+export type ChartKind = 'stack' | 'counterfactual' | 'line' | 'role-result'
 export type ChartViewMode = 'regular' | 'cumulative'
+export type RoleResultMode = 'output' | 'cap'
 
 export type StackChartSpec = {
   title: string
@@ -67,6 +69,7 @@ export type InspectionState = {
 
 export type RendererProps = {
   spec: StackChartSpec
+  chartKind: ChartKind
   chartType: ChartType
   viewMode: ChartViewMode
   showNetLine: boolean

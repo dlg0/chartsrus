@@ -45,10 +45,19 @@ export function StackSliceInspector({ spec, selectedYear, activeSeriesKey, isOpe
     return (
       <aside className="inspector collapsed" style={{ fontSize: tokens.fontSize, '--row-height': `${tokens.rowHeight}px` } as React.CSSProperties}>
         <button type="button" className="inspector-strip" onClick={() => onOpenChange(true)} aria-label="Expand inspector">
-          <strong>Inspector · {slice.year}</strong>
-          <span>Net {formatValue(slice.netTotal, spec.unit)}</span>
-          <span>+{formatValue(slice.positiveTotal, spec.unit)} / {formatValue(slice.negativeTotal, spec.unit)}</span>
-          {activeRow && <span className="strip-active"><span className="chip" style={{ background: colorForKey(spec, activeRow.key) }} /> {activeSeriesKey ? 'Active' : 'Top'}: {middleTruncate(activeRow.shortLabel, 18)} {formatValue(activeRow.value, spec.unit)}</span>}
+          <span className="inspector-strip-summary">
+            <strong>Inspector · {slice.year}</strong>
+            <span>Net {formatValue(slice.netTotal, spec.unit)}</span>
+            <span>+{formatValue(slice.positiveTotal, spec.unit)}</span>
+            <span>{formatValue(slice.negativeTotal, spec.unit)}</span>
+          </span>
+          {activeRow && (
+            <span className="strip-active">
+              <span className="chip" style={{ background: colorForKey(spec, activeRow.key) }} />
+              <span>{activeSeriesKey ? 'Active' : 'Top'}: {middleTruncate(activeRow.shortLabel, 28)}</span>
+              <strong>{formatValue(activeRow.value, spec.unit)}</strong>
+            </span>
+          )}
         </button>
       </aside>
     )

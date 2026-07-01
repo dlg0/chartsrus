@@ -26,6 +26,7 @@ const palette = [
 ]
 
 export function colorForKey(spec: StackChartSpec, key: string) {
-  const index = spec.series.findIndex((series) => series.key === key)
+  const colorKey = spec.series.find((series) => series.key === key)?.colorKey ?? key
+  const index = Array.from(new Set(spec.series.map((series) => series.colorKey ?? series.key))).indexOf(colorKey)
   return palette[Math.max(0, index) % palette.length]
 }

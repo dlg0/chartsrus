@@ -6,7 +6,7 @@ button { cursor: pointer; }
 .chart-lab { max-width: 1800px; margin: 0 auto; padding: 12px; }
 .hero { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: start; margin-bottom: 8px; }
 .hero h1 { margin: 0 0 4px; font-size: 22px; }
-.hero p, .fixture-note, .renderer-note { margin: 0; color: #52606d; font-size: 12px; }
+.hero p, .fixture-note { margin: 0; color: #52606d; font-size: 12px; }
 .controls { display: flex; flex-wrap: wrap; gap: 6px; justify-content: end; }
 .controls label, .controls button { display: inline-flex; align-items: center; gap: 4px; border: 1px solid #cbd3df; border-radius: 5px; padding: 3px 6px; background: white; font-size: 12px; }
 .controls select { border: 0; background: transparent; }
@@ -14,10 +14,16 @@ button { cursor: pointer; }
 .challenge-panel h2 { margin: 0 0 6px; font-size: 13px; }
 .challenge-panel ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 4px 14px; margin: 0; padding-left: 18px; color: #52606d; font-size: 12px; }
 .challenge-panel li { line-height: 1.25; }
-.cards { display: grid; grid-template-columns: repeat(var(--chart-columns, 1), minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+.chart-row { margin-top: 14px; }
+.chart-row-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+.chart-row-heading h2 { margin: 0; font-size: 15px; }
+.chart-row-heading p { margin: 0; color: #52606d; font-size: 12px; text-align: right; }
+.cards { display: grid; grid-template-columns: repeat(var(--chart-columns, 1), minmax(0, 1fr)); gap: 10px; }
+.chart-column { min-width: 0; display: grid; gap: 4px; }
+.chart-column h3 { margin: 0; padding: 0 2px; color: #344054; font-size: 12px; font-weight: 800; letter-spacing: 0.01em; }
 .chart-card { container-type: inline-size; position: relative; background: white; border: 1px solid #d6dce6; border-radius: 8px; overflow: visible; box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04); }
-.chart-card-header { display: flex; align-items: center; justify-content: space-between; min-height: var(--header-height); padding: 3px 8px; border-bottom: 1px solid #e3e7ee; }
-.chart-card-header h2 { margin: 0; font-size: 13px; }
+.chart-card-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: var(--header-height); padding: 3px 8px; border-bottom: 1px solid #e3e7ee; }
+.chart-card-header h2 { min-width: 0; margin: 0; overflow: hidden; color: #172033; font-size: 12px; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
 .chart-card-header p, .chart-card-header span { margin: 0; font-size: 10px; color: #667085; }
 .chart-card-status { font-size: 10px; color: #667085; white-space: nowrap; }
 .card-modebar { position: absolute; top: 4px; right: 4px; z-index: 6; display: inline-flex; gap: 1px; padding: 1px; border-radius: 6px; background: rgba(255, 255, 255, 0.85); box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.06); opacity: 0; transition: opacity 0.12s ease; }
@@ -43,15 +49,20 @@ button { cursor: pointer; }
 .chart-card:fullscreen .plot-host, .chart-card:fullscreen .recharts-wrap, .chart-card:fullscreen .observable-wrap, .chart-card:fullscreen .plotly-wrap { height: 100%; }
 .cursor-line { stroke: #111827; stroke-width: 1; stroke-dasharray: 3 3; pointer-events: none; }
 .inspector { border-top: 1px solid #e3e7ee; padding: 4px 6px; min-width: 0; background: #fbfcfe; }
+.chart-card > .inspector:last-child { border-bottom-left-radius: inherit; border-bottom-right-radius: inherit; }
 .inspector.collapsed { padding: 0; }
 .inspector.empty { display: grid; gap: 3px; color: #667085; font-size: 11px; }
 .inspector-topline { display: flex; justify-content: space-between; align-items: center; }
 .inspector-actions { display: inline-flex; gap: 8px; }
 .inspector button, .legend-shell button, .drawer-header button { border: 0; background: transparent; padding: 0; }
-.inspector-strip { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 24px; padding: 3px 6px !important; color: #52606d; text-align: left; overflow: hidden; white-space: nowrap; }
+.inspector-strip { display: grid; gap: 2px; width: 100%; min-height: 34px; padding: 3px 6px !important; color: #52606d; text-align: left; overflow: hidden; }
+.chart-card > .inspector:last-child .inspector-strip { border-bottom-left-radius: inherit; border-bottom-right-radius: inherit; }
 .inspector-strip strong { color: #172033; }
 .inspector-strip span { overflow: hidden; text-overflow: ellipsis; }
-.strip-active { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+.inspector-strip-summary { display: flex; align-items: center; gap: 8px; min-width: 0; white-space: nowrap; }
+.strip-active { display: inline-flex; align-items: center; gap: 4px; min-width: 0; white-space: nowrap; }
+.strip-active > span:not(.chip) { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.strip-active strong { flex: 0 0 auto; }
 .totals-grid { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; margin: 3px 0 4px; color: #667085; }
 .totals-grid strong { color: #172033; text-align: right; }
 .inspector-rows { display: grid; }
@@ -77,7 +88,6 @@ button { cursor: pointer; }
 .drawer-list { display: grid; gap: 1px; max-height: min(420px, calc(100vh - 125px)); overflow: auto; }
 .drawer-row { grid-template-columns: 10px 1fr; gap: 6px; border-radius: 4px; padding: 3px; }
 .drawer-row small { display: block; color: #667085; }
-.renderer-note { padding: 3px 8px 5px; border-top: 1px solid #eef1f5; }
 .comparison-panel { margin-top: 12px; background: white; border: 1px solid #d6dce6; border-radius: 8px; padding: 8px; overflow: auto; }
 .comparison-panel h2 { margin: 0 0 6px; font-size: 14px; }
 table { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -87,6 +97,8 @@ td { color: #52606d; }
 @media (max-width: 760px) {
   .hero { grid-template-columns: 1fr; }
   .controls { justify-content: start; }
+  .chart-row-heading { display: block; }
+  .chart-row-heading p { margin-top: 3px; text-align: left; }
   .cards { grid-template-columns: 1fr; }
 }
 
