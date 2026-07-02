@@ -9,11 +9,12 @@ type Props = {
   activeSeriesKey: string | null
   isolatedSeriesKeys: Set<string>
   forceFull?: boolean
+  position?: 'top' | 'bottom'
   setIsolatedSeriesKeys: React.Dispatch<React.SetStateAction<Set<string>>>
   setInspection: React.Dispatch<React.SetStateAction<InspectionState>>
 }
 
-export function CompactLegend({ spec, activeSeriesKey, isolatedSeriesKeys, forceFull = false, setIsolatedSeriesKeys, setInspection }: Props) {
+export function CompactLegend({ spec, activeSeriesKey, isolatedSeriesKeys, forceFull = false, position = 'top', setIsolatedSeriesKeys, setInspection }: Props) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const tokens = densityTokens[spec.options.density]
@@ -44,7 +45,7 @@ export function CompactLegend({ spec, activeSeriesKey, isolatedSeriesKeys, force
   }
 
   return (
-    <div className={forceFull ? 'legend-shell full' : 'legend-shell'} style={{ height: forceFull ? 'auto' : tokens.legendHeight, fontSize: tokens.fontSize }}>
+    <div className={['legend-shell', forceFull ? 'full' : '', position === 'bottom' ? 'bottom' : ''].filter(Boolean).join(' ')} style={{ height: forceFull ? 'auto' : tokens.legendHeight, fontSize: tokens.fontSize }}>
       <div className={forceFull ? 'compact-legend full' : 'compact-legend'} aria-label="Compact legend">
         <span className="legend-label">Legend</span>
         {inline.map((series) => (

@@ -7,7 +7,7 @@ import { RechartsStackChart } from './renderers/RechartsStackChart'
 import { VisxStackChart } from './renderers/VisxStackChart'
 import type { ChartDensity, ChartKind, ChartType, RendererProps, RoleResultMode, StackChartSpec } from './types'
 
-type ChartColumns = 1 | 2 | 3
+type ChartColumns = 1 | 2 | 3 | 4
 
 const comparisonRows: Array<[string, string, string, string, string]> = [
   ['diverging stack correctness', 'acceptable', 'good', 'good', 'good'],
@@ -38,7 +38,7 @@ export function App() {
   const [interpolation, setInterpolation] = useState<StackChartSpec['options']['interpolation']>('linear')
   const [useFullSeries, setUseFullSeries] = useState(true)
   const [chartType, setChartType] = useState<ChartType>('area')
-  const [chartColumns, setChartColumns] = useState<ChartColumns>(3)
+  const [chartColumns, setChartColumns] = useState<ChartColumns>(4)
   const [resetKey, setResetKey] = useState(0)
   const spec = useMemo(() => specWithOptions(density, interpolation, useFullSeries), [density, interpolation, useFullSeries])
   const decompositionSpec = useMemo(() => specWithDensity(counterfactualSpec, density), [density])
@@ -78,7 +78,7 @@ export function App() {
           <label>Interpolation <select value={interpolation} onChange={(event) => setInterpolation(event.target.value as StackChartSpec['options']['interpolation'])}><option>linear</option><option>step</option></select></label>
           <label>Series <select value={useFullSeries ? 'full' : 'grouped'} onChange={(event) => setUseFullSeries(event.target.value === 'full')}><option value="full">full</option><option value="grouped">reduced</option></select></label>
           <label>Chart type <select value={chartType} onChange={(event) => setChartType(event.target.value as ChartType)}><option>area</option><option>bar</option><option>line</option></select></label>
-          <label>Columns <select value={chartColumns} onChange={(event) => setChartColumns(Number(event.target.value) as ChartColumns)}><option value={1}>1</option><option value={2}>2</option><option value={3}>3</option></select></label>
+          <label>Columns <select value={chartColumns} onChange={(event) => setChartColumns(Number(event.target.value) as ChartColumns)}><option value={1}>1</option><option value={2}>2</option><option value={3}>3</option><option value={4}>4</option></select></label>
           <button type="button" onClick={() => setResetKey((key) => key + 1)}>reset inspection</button>
         </div>
       </section>
