@@ -25,6 +25,8 @@ const FULLSCREEN_ICON = { width: 24, height: 24, path: 'M7 14H5v5h5v-2H7v-3zm-2-
 const TOOLTIP_ICON = { width: 24, height: 24, path: 'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z' }
 const LEGEND_ICON = { width: 24, height: 24, path: 'M3 6h4v2H3V6zm6 0h12v2H9V6zM3 11h4v2H3v-2zm6 0h12v2H9v-2zM3 16h4v2H3v-2zm6 0h12v2H9v-2z' }
 const TOOLS_ICON = { width: 24, height: 24, path: 'M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z' }
+const CAMERA_ICON = { width: 24, height: 24, path: 'M12 15.2c1.77 0 3.2-1.43 3.2-3.2s-1.43-3.2-3.2-3.2-3.2 1.43-3.2 3.2 1.43 3.2 3.2 3.2zM9 2l-1.83 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z' }
+const CAMERA_FULL_ICON = { width: 24, height: 24, path: 'M22 16V4c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2zm-11-4l2.03 2.71L16 11l4 5H8l3-4zM2 6v14c0 1.1.9 2 2 2h14v-2H4V6H2z' }
 
 // Plotly renderer. Like the Observable Plot version it embeds a non-React chart through a ref and
 // drives the shared docked inspector from its own pointer maths (stable nearest-year + cell-at-point),
@@ -331,6 +333,18 @@ export function PlotlyStackChart({ spec, chartKind, chartType, viewMode, showNet
           title: 'Legend: click cycles hidden, right, bottom (click an entry to hide a series, double-click to isolate)',
           icon: LEGEND_ICON,
           click: () => setLegendMode((mode) => NEXT_LEGEND_MODE[mode]),
+        },
+        {
+          name: 'save-image',
+          title: 'Save image (compact view)',
+          icon: CAMERA_ICON,
+          click: (gd: HTMLElement) => gd.closest('.chart-card')?.dispatchEvent(new CustomEvent('chart-save-image', { bubbles: true })),
+        },
+        {
+          name: 'save-full',
+          title: 'Save full image (every legend item and inspector row)',
+          icon: CAMERA_FULL_ICON,
+          click: (gd: HTMLElement) => gd.closest('.chart-card')?.dispatchEvent(new CustomEvent('chart-save-full', { bubbles: true })),
         },
       ],
     ],

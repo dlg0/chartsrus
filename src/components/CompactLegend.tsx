@@ -65,7 +65,16 @@ export function CompactLegend({ spec, activeSeriesKey, isolatedSeriesKeys, force
             {middleTruncate(series.shortLabel, 18)}
           </button>
         ))}
-        {!forceFull && ranked.length > inline.length && <button type="button" className="legend-more" onClick={() => setOpen(true)}>+{ranked.length - inline.length} more</button>}
+        {!forceFull && ranked.length > inline.length && (
+          <button
+            type="button"
+            className={position === 'right' ? 'legend-more' : 'legend-more legend-overflow'}
+            title={`Show all ${ranked.length} series (${ranked.length - inline.length} not listed)`}
+            onClick={() => setOpen(true)}
+          >
+            ...
+          </button>
+        )}
         {isolatedSeriesKeys.size > 0 && <button type="button" className="legend-more" onClick={() => setIsolatedSeriesKeys(new Set())}>show all</button>}
       </div>
       {open && (

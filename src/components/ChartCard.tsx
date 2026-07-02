@@ -101,14 +101,25 @@ export function ChartCard({ name, spec, chartKind, chartType, modeSpecs, Rendere
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
   }, [])
 
-  // Plotly's native-modebar tools button can't reach this component's state directly, so it dispatches a
-  // bubbling DOM event on the card that we toggle the popover from.
+  // Plotly's native-modebar buttons can't reach this component's state directly, so they dispatch
+  // bubbling DOM events on the card that we handle here (tools popover, save image, save full).
+  // saveImage is re-created every render, so the listeners go through a ref to stay current.
+  const saveImageRef = useRef<(full?: boolean) => Promise<void>>(async () => {})
+  saveImageRef.current = saveImage
   useEffect(() => {
     const el = exportRef.current
     if (!nativeModebar || !el) return
-    const handler = () => setToolsOpen((open) => !open)
-    el.addEventListener('chart-tools-toggle', handler)
-    return () => el.removeEventListener('chart-tools-toggle', handler)
+    const toggleTools = () => setToolsOpen((open) => !open)
+    const save = () => void saveImageRef.current(false)
+    const saveFull = () => void saveImageRef.current(true)
+    el.addEventListener('chart-tools-toggle', toggleTools)
+    el.addEventListener('chart-save-image', save)
+    el.addEventListener('chart-save-full', saveFull)
+    return () => {
+      el.removeEventListener('chart-tools-toggle', toggleTools)
+      el.removeEventListener('chart-save-image', save)
+      el.removeEventListener('chart-save-full', saveFull)
+    }
   }, [nativeModebar])
 
   useEffect(() => {
@@ -181,7 +192,7 @@ export function ChartCard({ name, spec, chartKind, chartType, modeSpecs, Rendere
           }}
           onPointerLeave={() => setCursor(null)}
         >
-          {!nativeModebar && <CardModebar isFullscreen={isFullscreen} toolsOpen={toolsOpen} tooltipOn={tooltipOn} legendPosition={legendPosition} onToggleTools={() => setToolsOpen((open) => !open)} onToggleFullscreen={() => void toggleFullscreen()} onToggleTooltip={() => setTooltipOn((value) => !value)} onCycleLegend={cycleLegendPosition} />}
+          {!nativeModebar && <CardModebar isFullscreen={isFullscreen} toolsOpen={toolsOpen} tooltipOn={tooltipOn} legendPosition={legendPosition} onToggleTools={() => setToolsOpen((open) => !open)} onToggleFullscreen={() => void toggleFullscreen()} onToggleTooltip={() => setTooltipOn((value) => !value)} onCycleLegend={cycleLegendPosition} onSaveImage={() => void saveImage(false)} onSaveFull={() => void saveImage(true)} />}
           {tooltipVisible && (
             <div
               className="hover-tooltip"
