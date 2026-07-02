@@ -146,11 +146,11 @@ export function ChartCard({ name, spec, chartKind, chartType, modeSpecs, Rendere
   const effectiveLegendPosition: CardLegendPosition = showFullDetail && legendPosition === 'off' ? 'top' : legendPosition
 
   function cycleLegendPosition() {
-    setLegendPosition((position) => (position === 'top' ? 'bottom' : position === 'bottom' ? 'off' : 'top'))
+    setLegendPosition((position) => (position === 'top' ? 'right' : position === 'right' ? 'bottom' : position === 'bottom' ? 'off' : 'top'))
   }
 
-  const legendFor = (position: CardLegendPosition) => effectiveLegendPosition === position && (
-    <CompactLegend spec={activeSpec} activeSeriesKey={inspection.activeSeriesKey} isolatedSeriesKeys={isolatedSeriesKeys} forceFull={showFullDetail} position={position === 'bottom' ? 'bottom' : 'top'} setIsolatedSeriesKeys={setIsolatedSeriesKeys} setInspection={setInspection} />
+  const legendFor = (position: CardLegendPosition) => effectiveLegendPosition === position && position !== 'off' && (
+    <CompactLegend spec={activeSpec} activeSeriesKey={inspection.activeSeriesKey} isolatedSeriesKeys={isolatedSeriesKeys} forceFull={showFullDetail} position={position} setIsolatedSeriesKeys={setIsolatedSeriesKeys} setInspection={setInspection} />
   )
 
   // Cursor-following readout for renderers without a native tooltip; mirrors Plotly's closest-trace
@@ -172,7 +172,7 @@ export function ChartCard({ name, spec, chartKind, chartType, modeSpecs, Rendere
       </header>
       {isolatedSeriesKeys.size > 0 && <div className="isolation-banner">Only isolated traces are plotted. Click legend rows to add/remove traces, or use show all.</div>}
       {legendFor('top')}
-      <div className="chart-card-body">
+      <div className={effectiveLegendPosition === 'right' ? 'chart-card-body legend-right' : 'chart-card-body'}>
         <div
           className="plot-column"
           onPointerMove={(event) => {
@@ -213,6 +213,7 @@ export function ChartCard({ name, spec, chartKind, chartType, modeSpecs, Rendere
             )}
           </div>
         </div>
+        {legendFor('right')}
       </div>
       {legendFor('bottom')}
       <StackSliceInspector spec={renderSpec} selectedYear={selectedYear} activeSeriesKey={inspection.activeSeriesKey} isOpen={inspectorOpen} forceFull={showFullDetail} onOpenChange={setInspectorOpen} setInspection={setInspection} />

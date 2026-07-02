@@ -2,7 +2,7 @@
 // (Recharts, Observable Plot, visx). It mirrors the look of Plotly's modebar and carries the card-level
 // controls - full screen, tools (the mode/net/NDC/export popover), the hover tooltip toggle and the
 // legend position cycle (top strip, bottom strip, hidden).
-export type CardLegendPosition = 'top' | 'bottom' | 'off'
+export type CardLegendPosition = 'top' | 'right' | 'bottom' | 'off'
 
 type Props = {
   isFullscreen: boolean
@@ -33,7 +33,7 @@ export function CardModebar({ isFullscreen, toolsOpen, tooltipOn, legendPosition
       <button type="button" className={tooltipOn ? 'card-modebar-btn active' : 'card-modebar-btn'} title="Toggle the hover tooltip" aria-label="Toggle tooltip" aria-pressed={tooltipOn} onClick={onToggleTooltip}>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d={TOOLTIP_ICON} fill="currentColor" /></svg>
       </button>
-      <button type="button" className={legendPosition !== 'top' ? 'card-modebar-btn active' : 'card-modebar-btn'} title={`Legend: ${legendPosition === 'off' ? 'hidden' : legendPosition} (click cycles top, bottom, hidden)`} aria-label="Cycle legend position" onClick={onCycleLegend}>
+      <button type="button" className={legendPosition !== 'top' ? 'card-modebar-btn active' : 'card-modebar-btn'} title={`Legend: ${legendPosition === 'off' ? 'hidden' : legendPosition} (click cycles top, right, bottom, hidden)`} aria-label="Cycle legend position" onClick={onCycleLegend}>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d={LEGEND_ICON} fill="currentColor" /></svg>
       </button>
     </div>
