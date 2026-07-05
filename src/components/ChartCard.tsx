@@ -6,8 +6,6 @@ import { densityTokens } from '../density'
 import { stackBySign, yearsFromSpec } from '../stackUtils'
 import type { ChartKind, ChartType, ChartViewMode, InspectionState, RendererProps, RoleResultMode, StackChartSpec, StackDatum } from '../types'
 import { useMeasure } from '../useMeasure'
-import { CardModebar } from './CardModebar'
-import type { CardLegendPosition } from './CardModebar'
 import { CompactLegend } from './CompactLegend'
 import { StackSliceInspector } from './StackSliceInspector'
 
@@ -18,9 +16,9 @@ type Props = {
   chartType: ChartType
   modeSpecs?: Partial<Record<RoleResultMode, StackChartSpec>>
   Renderer: React.ComponentType<RendererProps>
-  // When the renderer has its own modebar (Plotly), it carries the tools/full-screen icons itself and
-  // toggles the tools popover by dispatching a bubbling 'chart-tools-toggle' event; otherwise this card
-  // shows its own floating CardModebar.
+  // When the renderer has its own modebar (Plotly), its native buttons dispatch bubbling DOM events
+  // ('chart-tools-toggle', 'chart-save-image', 'chart-save-full') that this card listens for. That
+  // bridge is deliberately kept as evidence of the Plotly<->React integration cost.
   nativeModebar?: boolean
 }
 
@@ -41,9 +39,6 @@ export function ChartCard({ name, spec, chartKind, chartType, modeSpecs, Rendere
   const [toolsOpen, setToolsOpen] = useState(false)
   const [inspectorOpen, setInspectorOpen] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
-  const [tooltipOn, setTooltipOn] = useState(false)
-  const [legendPosition, setLegendPosition] = useState<CardLegendPosition>('top')
-  const [cursor, setCursor] = useState<{ x: number, y: number } | null>(null)
   const selectedYear = inspection.pinnedYear ?? inspection.activeYear
   const [plotRef, plotSize] = useMeasure<HTMLDivElement>()
   const exportRef = useRef<HTMLElement | null>(null)
@@ -153,59 +148,19 @@ export function ChartCard({ name, spec, chartKind, chartType, modeSpecs, Rendere
   // Fullscreen reuses the same full-detail layout as the full-image export: every legend item and
   // every inspector row stays visible while the plot grows to fill the screen.
   const showFullDetail = forceFullExportLayout || isFullscreen
-  // Full-detail modes always show a legend, even when the cycle has hidden it.
-  const effectiveLegendPosition: CardLegendPosition = showFullDetail && legendPosition === 'off' ? 'top' : legendPosition
-
-  function cycleLegendPosition() {
-    setLegendPosition((position) => (position === 'top' ? 'right' : position === 'right' ? 'bottom' : position === 'bottom' ? 'off' : 'top'))
-  }
-
-  const legendFor = (position: CardLegendPosition) => effectiveLegendPosition === position && position !== 'off' && (
-    <CompactLegend spec={activeSpec} activeSeriesKey={inspection.activeSeriesKey} isolatedSeriesKeys={isolatedSeriesKeys} forceFull={showFullDetail} position={position} setIsolatedSeriesKeys={setIsolatedSeriesKeys} setInspection={setInspection} />
-  )
-
-  // Cursor-following readout for renderers without a native tooltip; mirrors Plotly's closest-trace
-  // hover label using the shared inspection state as the source of truth.
-  const tooltipSeries = renderSpec.series.find((series) => series.key === inspection.activeSeriesKey)
-  const tooltipRow = inspection.activeYear == null ? undefined : renderSpec.data.find((row) => row.year === inspection.activeYear)
-  const tooltipValue = tooltipSeries && tooltipRow ? tooltipRow[tooltipSeries.key] : null
-  const tooltipVisible = !nativeModebar && tooltipOn && cursor != null && tooltipSeries != null && inspection.activeYear != null
-  const tooltipFlipsLeft = cursor != null && plotSize.width > 0 && cursor.x > plotSize.width * 0.6
 
   return (
     <section ref={exportRef} className="chart-card" style={{ '--inspector-width': `${tokens.inspectorWidth}px`, '--header-height': `${tokens.headerHeight}px` } as React.CSSProperties}>
       <header className="chart-card-header">
-        <div>
-          <h2>{name}</h2>
-          <p>{activeSpec.title} · {activeSpec.unit}{isolatedSeriesKeys.size > 0 ? ` · isolated ${isolatedSeriesKeys.size}/${activeSpec.series.length}` : ''}</p>
-        </div>
-        <span className="chart-card-status" data-export-ignore="true">{inspection.pinnedYear == null ? 'hover selects' : `pinned ${inspection.pinnedYear}`}</span>
-      </header>
-      {isolatedSeriesKeys.size > 0 && <div className="isolation-banner">Only isolated traces are plotted. Click legend rows to add/remove traces, or use show all.</div>}
-      {legendFor('top')}
-      <div className={effectiveLegendPosition === 'right' ? 'chart-card-body legend-right' : 'chart-card-body'}>
-        <div
-          className="plot-column"
-          onPointerMove={(event) => {
-            const rect = event.currentTarget.getBoundingClientRect()
-            setCursor({ x: event.clientX - rect.left, y: event.clientY - rect.top })
-          }}
-          onPointerLeave={() => setCursor(null)}
-        >
-          {!nativeModebar && <CardModebar isFullscreen={isFullscreen} toolsOpen={toolsOpen} tooltipOn={tooltipOn} legendPosition={legendPosition} onToggleTools={() => setToolsOpen((open) => !open)} onToggleFullscreen={() => void toggleFullscreen()} onToggleTooltip={() => setTooltipOn((value) => !value)} onCycleLegend={cycleLegendPosition} onSaveImage={() => void saveImage(false)} onSaveFull={() => void saveImage(true)} />}
-          {tooltipVisible && (
-            <div
-              className="hover-tooltip"
-              data-export-ignore="true"
-              style={tooltipFlipsLeft
-                ? { left: cursor.x - 12, top: cursor.y + 14, transform: 'translateX(-100%)' }
-                : { left: cursor.x + 12, top: cursor.y + 14 }}
-            >
-              {inspection.activeYear} · {tooltipSeries.shortLabel}: {tooltipValue == null ? 'n/a' : `${Math.round(tooltipValue)} ${renderSpec.unit}`}
-            </div>
-          )}
+        <h2>{activeSpec.title} · {activeSpec.unit}{isolatedSeriesKeys.size > 0 ? ` · isolated ${isolatedSeriesKeys.size}/${activeSpec.series.length}` : ''}</h2>
+        <div className="chart-tools" data-export-ignore="true">
+          {inspection.pinnedYear != null && <span>pinned {inspection.pinnedYear}</span>}
+          <button type="button" className="tools-trigger" onClick={() => void toggleFullscreen()} aria-pressed={isFullscreen}>{isFullscreen ? 'exit full' : 'full'}</button>
+          <button type="button" className="tools-trigger" onClick={() => setToolsOpen((open) => !open)} aria-expanded={toolsOpen}>
+            tools ▾
+          </button>
           {toolsOpen && (
-            <div className="tools-popover" role="dialog" aria-label={`${name} tools`} data-export-ignore="true">
+            <div className="tools-popover" role="dialog" aria-label={`${name} tools`}>
               <div className="tools-popover-header">
                 <strong>Tools</strong>
                 <button type="button" onClick={() => setToolsOpen(false)}>close</button>
@@ -218,15 +173,19 @@ export function ChartCard({ name, spec, chartKind, chartType, modeSpecs, Rendere
               <button type="button" onClick={() => void saveImage(true)}>save full</button>
             </div>
           )}
+        </div>
+      </header>
+      {isolatedSeriesKeys.size > 0 && <div className="isolation-banner">Only isolated traces are plotted. Click legend rows to add/remove traces, or use show all.</div>}
+      <CompactLegend spec={activeSpec} activeSeriesKey={inspection.activeSeriesKey} isolatedSeriesKeys={isolatedSeriesKeys} forceFull={showFullDetail} setIsolatedSeriesKeys={setIsolatedSeriesKeys} setInspection={setInspection} />
+      <div className="chart-card-body">
+        <div className="plot-column">
           <div className="plot-host" ref={plotRef}>
             {plotSize.width > 20 && plotSize.height > 20 && (
               <Renderer spec={renderSpec} chartKind={effectiveChartKind} chartType={effectiveChartType} viewMode={viewMode} showNetLine={showNetLine} showTargets={showTargets} width={plotSize.width} height={plotSize.height} inspection={inspection} setInspection={setInspection} />
             )}
           </div>
         </div>
-        {legendFor('right')}
       </div>
-      {legendFor('bottom')}
       <StackSliceInspector spec={renderSpec} selectedYear={selectedYear} activeSeriesKey={inspection.activeSeriesKey} isOpen={inspectorOpen} forceFull={showFullDetail} onOpenChange={setInspectorOpen} setInspection={setInspection} />
     </section>
   )

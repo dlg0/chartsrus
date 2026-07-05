@@ -66,10 +66,13 @@ export function RechartsStackChart({ spec, chartKind, chartType, viewMode, showN
     for (const series of spec.series) {
       const value = row[series.key]
       next[series.key] = value // raw value, for line mode
-      // Off-sign contributions are 0 (a continuous zero-thickness taper), not null, so the sign-split
-      // areas never break and meet cleanly at the baseline. Only genuinely missing values stay null.
-      next[`${series.key}__pos`] = value == null ? null : Math.max(0, value)
-      next[`${series.key}__neg`] = value == null ? null : Math.min(0, value)
+      // Off-sign contributions stay null (not 0): recharts' offsetSign anchors any value >= 0 at the
+      // running positive cumulative, so feeding 0 for the wrong sign would paint the series' area from
+      // the top of the positive stack down to its real band — a misleading diagonal sliver across the
+      // chart. null + connectNulls=false leaves an honest gap at sign changes instead. That gap is the
+      // real Recharts limitation this bake-off is meant to surface (see docs/comparison-notes.md).
+      next[`${series.key}__pos`] = value != null && value > 0 ? value : null
+      next[`${series.key}__neg`] = value != null && value < 0 ? value : null
     }
     return next
   }), [net, spec, targets])

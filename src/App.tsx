@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { ChartCard } from './components/ChartCard'
 import { counterfactualSpec, lineSpec, roleResultCapSpec, roleResultOutputSpec, specWithDensity, specWithOptions } from './fixture'
 import { ObservablePlotStackChart } from './renderers/ObservablePlotStackChart'
@@ -14,15 +14,15 @@ const comparisonRows: Array<[string, string, string, string, string]> = [
   ['sign-changing series handling', 'acceptable', 'good', 'good', 'good'],
   ['irregular x spacing', 'good', 'good', 'good', 'good'],
   ['dense layout control', 'acceptable', 'good', 'good', 'good'],
-  ['custom docked inspector', 'good', 'good', 'good', 'good'],
+  ['custom docked inspector', 'good', 'good', 'good', 'acceptable'],
   ['compact legend/drawer', 'good', 'good', 'good', 'good'],
-  ['keyboard inspection', 'good', 'good', 'good', 'good'],
-  ['React state integration', 'good', 'awkward', 'good', 'good'],
-  ['implementation complexity', 'low', 'medium', 'high', 'medium'],
-  ['perceived maintainability', 'acceptable', 'acceptable', 'good', 'good'],
+  ['keyboard inspection', 'good', 'good', 'good', 'acceptable'],
+  ['React state integration', 'good', 'awkward', 'good', 'awkward'],
+  ['implementation complexity', 'low', 'medium', 'high', 'high'],
+  ['perceived maintainability', 'acceptable', 'acceptable', 'good', 'acceptable'],
   ['performance with 20 series', 'good', 'good', 'good', 'good'],
   ['visual polish', 'acceptable', 'good', 'acceptable', 'good'],
-  ['native interactivity (zoom/pan/export)', 'acceptable', 'acceptable', 'acceptable', 'good'],
+  ['bundle size / footprint', 'good', 'good', 'good', 'poor'],
   ['export/screenshot suitability', 'good', 'good', 'good', 'good'],
 ]
 
@@ -40,25 +40,6 @@ export function App() {
   const [chartType, setChartType] = useState<ChartType>('area')
   const [chartColumns, setChartColumns] = useState<ChartColumns>(4)
   const [resetKey, setResetKey] = useState(0)
-  const [modebarsHidden, setModebarsHidden] = useState(false)
-
-  // 'M' hides every floating toolbar (card modebars and Plotly's native modebar) so multi-plot
-  // screenshots stay clean while the cursor hovers a card. Ignored while typing in a form control.
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key.toLowerCase() !== 'm' || event.ctrlKey || event.metaKey || event.altKey) return
-      const target = event.target as HTMLElement | null
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return
-      setModebarsHidden((value) => !value)
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
-
-  useEffect(() => {
-    document.body.classList.toggle('modebars-hidden', modebarsHidden)
-    return () => document.body.classList.remove('modebars-hidden')
-  }, [modebarsHidden])
   const spec = useMemo(() => specWithOptions(density, interpolation, useFullSeries), [density, interpolation, useFullSeries])
   const decompositionSpec = useMemo(() => specWithDensity(counterfactualSpec, density), [density])
   const trajectorySpec = useMemo(() => specWithDensity(lineSpec, density), [density])
@@ -99,7 +80,6 @@ export function App() {
           <label>Chart type <select value={chartType} onChange={(event) => setChartType(event.target.value as ChartType)}><option>area</option><option>bar</option><option>line</option></select></label>
           <label>Columns <select value={chartColumns} onChange={(event) => setChartColumns(Number(event.target.value) as ChartColumns)}><option value={1}>1</option><option value={2}>2</option><option value={3}>3</option><option value={4}>4</option></select></label>
           <button type="button" onClick={() => setResetKey((key) => key + 1)}>reset inspection</button>
-          <button type="button" aria-pressed={modebarsHidden} title="Hide/show every plot toolbar for clean screenshots (shortcut: M)" onClick={() => setModebarsHidden((value) => !value)}>{modebarsHidden ? 'toolbars: off (M)' : 'toolbars: on (M)'}</button>
         </div>
       </section>
       <section className="challenge-panel" aria-labelledby="challenge-panel-heading">

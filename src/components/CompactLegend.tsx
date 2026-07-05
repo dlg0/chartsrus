@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { colorForKey } from '../colors'
 import { densityTokens } from '../density'
 import { middleTruncate, rankSeriesByImportance } from '../stackUtils'
@@ -9,35 +9,17 @@ type Props = {
   activeSeriesKey: string | null
   isolatedSeriesKeys: Set<string>
   forceFull?: boolean
-  position?: 'top' | 'right' | 'bottom'
   setIsolatedSeriesKeys: React.Dispatch<React.SetStateAction<Set<string>>>
   setInspection: React.Dispatch<React.SetStateAction<InspectionState>>
 }
 
-export function CompactLegend({ spec, activeSeriesKey, isolatedSeriesKeys, forceFull = false, position = 'top', setIsolatedSeriesKeys, setInspection }: Props) {
+export function CompactLegend({ spec, activeSeriesKey, isolatedSeriesKeys, forceFull = false, setIsolatedSeriesKeys, setInspection }: Props) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const tokens = densityTokens[spec.options.density]
   const ranked = useMemo(() => rankSeriesByImportance(spec), [spec])
   const inline = forceFull ? ranked : ranked.slice(0, spec.options.maxInlineLegendItems)
   const filtered = ranked.filter((series) => `${series.shortLabel} ${series.label}`.toLowerCase().includes(query.toLowerCase()))
-  // A narrow card can clip inline pills even when every series made the inline cut, so the '...'
-  // drawer link keys off measured overflow of the strip, not just the slice count.
-  const rowRef = useRef<HTMLDivElement | null>(null)
-  const [rowOverflowing, setRowOverflowing] = useState(false)
-  useEffect(() => {
-    const el = rowRef.current
-    if (!el || forceFull) {
-      setRowOverflowing(false)
-      return
-    }
-    const check = () => setRowOverflowing(el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1)
-    check()
-    const observer = new ResizeObserver(check)
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [forceFull, inline.length, position])
-  const showDrawerLink = !forceFull && (ranked.length > inline.length || rowOverflowing)
 
   function toggleIsolated(key: string) {
     setIsolatedSeriesKeys((previous) => {
@@ -62,8 +44,8 @@ export function CompactLegend({ spec, activeSeriesKey, isolatedSeriesKeys, force
   }
 
   return (
-    <div className={['legend-shell', forceFull ? 'full' : '', position !== 'top' ? position : ''].filter(Boolean).join(' ')} style={{ height: forceFull || position === 'right' ? 'auto' : tokens.legendHeight, fontSize: tokens.fontSize }}>
-      <div ref={rowRef} className={forceFull ? 'compact-legend full' : 'compact-legend'} aria-label="Compact legend">
+    <div className={forceFull ? 'legend-shell full' : 'legend-shell'} style={{ height: forceFull ? 'auto' : tokens.legendHeight, fontSize: tokens.fontSize }}>
+      <div className={forceFull ? 'compact-legend full' : 'compact-legend'} aria-label="Compact legend">
         <span className="legend-label">Legend</span>
         {inline.map((series) => (
           <button
@@ -82,16 +64,7 @@ export function CompactLegend({ spec, activeSeriesKey, isolatedSeriesKeys, force
             {middleTruncate(series.shortLabel, 18)}
           </button>
         ))}
-        {showDrawerLink && (
-          <button
-            type="button"
-            className={position === 'right' ? 'legend-more' : 'legend-more legend-overflow'}
-            title={`Show all ${ranked.length} series`}
-            onClick={() => setOpen(true)}
-          >
-            ...
-          </button>
-        )}
+        {!forceFull && ranked.length > inline.length && <button type="button" className="legend-more" onClick={() => setOpen(true)}>+{ranked.length - inline.length} more</button>}
         {isolatedSeriesKeys.size > 0 && <button type="button" className="legend-more" onClick={() => setIsolatedSeriesKeys(new Set())}>show all</button>}
       </div>
       {open && (

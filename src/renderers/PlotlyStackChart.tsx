@@ -31,7 +31,7 @@ const CAMERA_FULL_ICON = { width: 24, height: 24, path: 'M22 16V4c0-1.1-.9-2-2-2
 // Plotly renderer. Like the Observable Plot version it embeds a non-React chart through a ref and
 // drives the shared docked inspector from its own pointer maths (stable nearest-year + cell-at-point),
 // while Plotly owns the rendering: diffed Plotly.react updates, native grid/axes, an x spikeline that
-// tracks the cursor, uirevision to keep zoom, and custom modebar buttons. The explicit StackCell
+// tracks the cursor, uirevision to keep UI toggles across redraws, and custom modebar buttons. The explicit StackCell
 // y0/y1 geometry stays the source of truth: each contiguous same-sign segment is one closed
 // fill: 'toself' polygon, so sign-changing series keep one colour and never draw an area across zero.
 export function PlotlyStackChart({ spec, chartKind, chartType, viewMode, showNetLine, showTargets, width, height, inspection, setInspection }: RendererProps) {
@@ -258,9 +258,12 @@ export function PlotlyStackChart({ spec, chartKind, chartType, viewMode, showNet
       // Default to a single closest-trace tooltip; the modebar's show-nearest/show-all buttons switch this
       // and uirevision keeps the choice. Whether a label shows is gated by hovertemplate/hoverinfo, not here.
       hovermode: 'closest',
-      dragmode: 'zoom',
+      // Drag-zoom/pan is disabled: the shared docked inspector runs off our own pointer maths against the
+      // static data-derived domain, so a zoomed/panned axis would silently desync inspection. This is a
+      // real Plotly friction point for the fixed-geometry model (see docs/comparison-notes.md).
+      dragmode: false,
       barmode: 'overlay',
-      // Keep pan/zoom and legend visibility toggles across data updates so hover redraws never reset them.
+      // Keep hover-mode and legend visibility toggles across data updates so hover redraws never reset them.
       uirevision: `${chartKind}-${chartType}-${viewMode}-${showNetLine}-${showTargets}-${spec.series.length}-${spec.options.interpolation}-${spec.options.density}`,
       xaxis: {
         range: xDomain,
@@ -303,8 +306,10 @@ export function PlotlyStackChart({ spec, chartKind, chartType, viewMode, showNet
     // Spell out the modebar so the show-nearest (hoverClosestCartesian) and show-all (hoverCompareCartesian)
     // hover toggles are guaranteed to appear (Plotly was dropping them from the defaults); the PNG export is
     // left out in favour of the card's own save image / save full, along with the lasso/box-select noise.
+    // zoom/pan/reset are omitted deliberately: the shared inspector's pointer maths assume the static
+    // domain, so an interactive range change would desync inspection.
     modeBarButtons: [
-      ['zoom2d', 'pan2d', 'resetScale2d', 'hoverClosestCartesian', 'hoverCompareCartesian'],
+      ['hoverClosestCartesian', 'hoverCompareCartesian'],
       [
         {
           name: 'fullscreen',
