@@ -60,6 +60,18 @@ export function PlotlyStackChart({ spec, chartKind, chartType, viewMode, showNet
   const wedgeLines = useMemo(() => counterfactualLineData(spec.data, spec.series), [spec])
   const wedgeCells = useMemo(() => counterfactualCells(spec.data, spec.series), [spec])
   const wedgeDomain = counterfactualExtent(wedgeCells, wedgeLines)
+  const selectedYear = inspection.pinnedYear ?? inspection.activeYear
+  // Active data point for the horizontal crosshair shape: the series under the pointer. y is the raw
+  // value on a line chart, otherwise the mid of its stack/wedge cell. Only drawn while a series is active.
+  const activeStackCell = activeKey != null && selectedYear != null ? cells.find((cell) => cell.key === activeKey && cell.year === selectedYear && !cell.isMissing && cell.sign !== 'zero') : undefined
+  const activeWedgeCell = activeKey != null && selectedYear != null ? wedgeCells.find((cell) => cell.key === activeKey && cell.year === selectedYear && !cell.isMissing && cell.sign !== 'zero') : undefined
+  const activeLineRow = activeKey != null && selectedYear != null ? spec.data.find((row) => row.year === selectedYear) : undefined
+  const activeLineValue = activeLineRow && activeKey != null ? activeLineRow[activeKey] : null
+  const crossY = chartKind === 'line'
+    ? activeLineValue
+    : chartKind === 'counterfactual'
+      ? (activeWedgeCell ? (activeWedgeCell.y0 + activeWedgeCell.y1) / 2 : null)
+      : chartType === 'line' ? activeLineValue : (activeStackCell ? (activeStackCell.y0 + activeStackCell.y1) / 2 : null)
   const barBands = useMemo(() => barXBands(years), [years])
   const barBandByYear = useMemo(() => new Map(barBands.map((band) => [band.year, band])), [barBands])
   const usesBarDomain = chartType === 'bar' && chartKind !== 'line'
@@ -232,6 +244,10 @@ export function PlotlyStackChart({ spec, chartKind, chartType, viewMode, showNet
     if (inspection.pinnedYear != null) {
       shapes.push({ type: 'line', xref: 'x', x0: inspection.pinnedYear, x1: inspection.pinnedYear, yref: 'paper', y0: 0, y1: 1, line: { color: '#111827', width: 1, dash: 'dot' }, layer: 'above' })
     }
+    // Horizontal dotted crosshair at the active point's y, matching the vertical year line.
+    if (crossY != null) {
+      shapes.push({ type: 'line', xref: 'paper', x0: 0, x1: 1, yref: 'y', y0: crossY, y1: crossY, line: { color: '#111827', width: 1, dash: 'dot' }, layer: 'above' })
+    }
     // Compact legend: every series is its own legendgroup, so the default 10px tracegroupgap is what
     // spreads entries out - zero it and use constant-size symbols. Docked right it sits in reserved
     // right margin; docked bottom it flows horizontally in reserved bottom margin (container-relative
@@ -296,7 +312,7 @@ export function PlotlyStackChart({ spec, chartKind, chartType, viewMode, showNet
       },
       shapes,
     }
-  }, [chartKind, chartType, height, inspection.pinnedYear, legendMode, legendVisible, marginBottom, marginRight, plotYMax, plotYMin, showNetLine, showTargets, spec.options.density, spec.options.interpolation, spec.series.length, tokens, viewMode, width, xDomain, xTicks])
+  }, [chartKind, chartType, crossY, height, inspection.pinnedYear, legendMode, legendVisible, marginBottom, marginRight, plotYMax, plotYMin, showNetLine, showTargets, spec.options.density, spec.options.interpolation, spec.series.length, tokens, viewMode, width, xDomain, xTicks])
 
   const config = useMemo<Partial<Config>>(() => ({
     displaylogo: false,

@@ -7,13 +7,11 @@ import type { InspectionState, StackChartSpec } from '../types'
 type Props = {
   spec: StackChartSpec
   activeSeriesKey: string | null
-  isolatedSeriesKeys: Set<string>
   forceFull?: boolean
-  setIsolatedSeriesKeys: React.Dispatch<React.SetStateAction<Set<string>>>
   setInspection: React.Dispatch<React.SetStateAction<InspectionState>>
 }
 
-export function CompactLegend({ spec, activeSeriesKey, isolatedSeriesKeys, forceFull = false, setIsolatedSeriesKeys, setInspection }: Props) {
+export function CompactLegend({ spec, activeSeriesKey, forceFull = false, setInspection }: Props) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const tokens = densityTokens[spec.options.density]
@@ -21,26 +19,8 @@ export function CompactLegend({ spec, activeSeriesKey, isolatedSeriesKeys, force
   const inline = forceFull ? ranked : ranked.slice(0, spec.options.maxInlineLegendItems)
   const filtered = ranked.filter((series) => `${series.shortLabel} ${series.label}`.toLowerCase().includes(query.toLowerCase()))
 
-  function toggleIsolated(key: string) {
-    setIsolatedSeriesKeys((previous) => {
-      if (previous.size === 0) return new Set([key])
-      const next = new Set(previous)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    })
-  }
-
-  function isolateOnly(key: string) {
-    setIsolatedSeriesKeys(new Set([key]))
-  }
-
   function legendClass(key: string) {
-    return [
-      'legend-pill',
-      isolatedSeriesKeys.size > 0 && isolatedSeriesKeys.has(key) ? 'isolated' : '',
-      activeSeriesKey === key ? 'active' : '',
-    ].filter(Boolean).join(' ')
+    return ['legend-pill', activeSeriesKey === key ? 'active' : ''].filter(Boolean).join(' ')
   }
 
   return (
@@ -52,9 +32,7 @@ export function CompactLegend({ spec, activeSeriesKey, isolatedSeriesKeys, force
             type="button"
             key={series.key}
             className={legendClass(series.key)}
-            aria-label={`${series.label}. Double click to isolate; click while isolated to add or remove.`}
-            onClick={() => isolatedSeriesKeys.size > 0 && toggleIsolated(series.key)}
-            onDoubleClick={() => isolateOnly(series.key)}
+            aria-label={series.label}
             onMouseEnter={() => setInspection((state) => ({ ...state, activeSeriesKey: series.key }))}
             onFocus={() => setInspection((state) => ({ ...state, activeSeriesKey: series.key }))}
             onMouseLeave={() => setInspection((state) => ({ ...state, activeSeriesKey: null }))}
@@ -65,7 +43,6 @@ export function CompactLegend({ spec, activeSeriesKey, isolatedSeriesKeys, force
           </button>
         ))}
         {!forceFull && ranked.length > inline.length && <button type="button" className="legend-more" onClick={() => setOpen(true)}>+{ranked.length - inline.length} more</button>}
-        {isolatedSeriesKeys.size > 0 && <button type="button" className="legend-more" onClick={() => setIsolatedSeriesKeys(new Set())}>show all</button>}
       </div>
       {open && (
         <div className="legend-drawer" role="dialog" aria-label="All series legend">
@@ -80,15 +57,13 @@ export function CompactLegend({ spec, activeSeriesKey, isolatedSeriesKeys, force
                 type="button"
                 className={activeSeriesKey === series.key ? 'drawer-row active' : 'drawer-row'}
                 key={series.key}
-                onClick={() => isolatedSeriesKeys.size > 0 && toggleIsolated(series.key)}
-                onDoubleClick={() => isolateOnly(series.key)}
                 onMouseEnter={() => setInspection((state) => ({ ...state, activeSeriesKey: series.key }))}
                 onFocus={() => setInspection((state) => ({ ...state, activeSeriesKey: series.key }))}
                 onMouseLeave={() => setInspection((state) => ({ ...state, activeSeriesKey: null }))}
                 onBlur={() => setInspection((state) => ({ ...state, activeSeriesKey: null }))}
               >
                 <span className="chip" style={{ background: colorForKey(spec, series.key) }} />
-                <span><strong>{series.shortLabel}{isolatedSeriesKeys.has(series.key) ? ' · isolated' : ''}</strong><small>{series.label}</small></span>
+                <span><strong>{series.shortLabel}</strong><small>{series.label}</small></span>
               </button>
             ))}
           </div>

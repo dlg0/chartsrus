@@ -8,9 +8,11 @@ type Props = {
   spec: StackChartSpec
   selectedYear: number | null
   activeSeriesKey: string | null
+  isolatedSeriesKeys: Set<string>
   isOpen: boolean
   forceFull?: boolean
   onOpenChange: (open: boolean) => void
+  setIsolatedSeriesKeys: React.Dispatch<React.SetStateAction<Set<string>>>
   setInspection: React.Dispatch<React.SetStateAction<InspectionState>>
 }
 
@@ -21,7 +23,7 @@ function rowShare(cell: StackCell, positiveTotal: number, negativeTotal: number,
   return '—'
 }
 
-export function StackSliceInspector({ spec, selectedYear, activeSeriesKey, isOpen, forceFull = false, onOpenChange, setInspection }: Props) {
+export function StackSliceInspector({ spec, selectedYear, activeSeriesKey, isolatedSeriesKeys, isOpen, forceFull = false, onOpenChange, setIsolatedSeriesKeys, setInspection }: Props) {
   const [showAllRows, setShowAllRows] = useState(false)
   const tokens = densityTokens[spec.options.density]
   const cells = useMemo(() => stackBySign(spec.data, spec.series), [spec])
@@ -36,9 +38,31 @@ export function StackSliceInspector({ spec, selectedYear, activeSeriesKey, isOpe
   const inspectorOpen = isOpen || forceFull
   const visibleRows = showAllRows || forceFull ? rows : rows.slice(0, spec.options.maxInspectorRows)
   const hiddenCount = Math.max(0, rows.length - visibleRows.length)
+  const isolating = isolatedSeriesKeys.size > 0
+
+  // First click on a row isolates just that series; further clicks add or remove series from the
+  // isolated set. Isolation lives here (not in the legend) so the full series list is always at hand.
+  function toggleIsolated(key: string) {
+    setIsolatedSeriesKeys((previous) => {
+      if (previous.size === 0) return new Set([key])
+      const next = new Set(previous)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+  function showAll() {
+    setIsolatedSeriesKeys(new Set())
+  }
 
   if (!slice) {
-    return <aside className="inspector empty"><strong>Inspector</strong><span>Move over the plot to inspect a model-year slice.</span></aside>
+    return (
+      <aside className="inspector empty">
+        <strong>Inspector</strong>
+        <span>Move over the plot to inspect a model-year slice.</span>
+        {isolating && <button type="button" className="inspector-showall" onClick={showAll}>show all series</button>}
+      </aside>
+    )
   }
 
   if (!inspectorOpen) {
@@ -59,6 +83,7 @@ export function StackSliceInspector({ spec, selectedYear, activeSeriesKey, isOpe
             </span>
           )}
         </button>
+        {isolating && <button type="button" className="inspector-showall" onClick={showAll}>show all series</button>}
       </aside>
     )
   }
@@ -68,6 +93,7 @@ export function StackSliceInspector({ spec, selectedYear, activeSeriesKey, isOpe
       <div className="inspector-topline">
         <strong>Inspector · {slice.year}{forceFull ? ' · full' : ''}</strong>
         <span className="inspector-actions">
+          {isolating && <button type="button" onClick={showAll}>show all</button>}
           <button type="button" onClick={() => setShowAllRows((value) => !value)}>{showAllRows || forceFull ? 'fewer rows' : 'all rows'}</button>
           {!forceFull && <button type="button" onClick={() => onOpenChange(false)}>collapse</button>}
         </span>
@@ -82,13 +108,19 @@ export function StackSliceInspector({ spec, selectedYear, activeSeriesKey, isOpe
         {visibleRows.map((cell) => (
           <button
             type="button"
-            className={activeSeriesKey === cell.key ? 'inspector-row active' : 'inspector-row'}
+            className={[
+              'inspector-row',
+              activeSeriesKey === cell.key ? 'active' : '',
+              isolating && isolatedSeriesKeys.has(cell.key) ? 'isolated' : '',
+            ].filter(Boolean).join(' ')}
             key={cell.key}
+            onClick={() => toggleIsolated(cell.key)}
             onMouseEnter={() => setInspection((state) => ({ ...state, activeSeriesKey: cell.key }))}
             onFocus={() => setInspection((state) => ({ ...state, activeSeriesKey: cell.key }))}
             onMouseLeave={() => setInspection((state) => ({ ...state, activeSeriesKey: null }))}
             onBlur={() => setInspection((state) => ({ ...state, activeSeriesKey: null }))}
-            aria-label={cell.label}
+            aria-label={`${cell.label}. ${isolating ? 'Click to add or remove from isolated traces.' : 'Click to isolate this trace.'}`}
+            aria-pressed={isolating && isolatedSeriesKeys.has(cell.key)}
           >
             <span className="chip" style={{ background: colorForKey(spec, cell.key) }} />
             <span className="row-label">{middleTruncate(cell.shortLabel, 22)}</span>

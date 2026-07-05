@@ -42,6 +42,7 @@ button { cursor: pointer; }
 .chart-card-body { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 248px; }
 .plot-column { min-width: 0; position: relative; }
 .plot-host, .recharts-wrap, .observable-wrap, .plotly-wrap { width: 100%; height: 248px; }
+.hover-tooltip { position: absolute; z-index: 12; pointer-events: none; display: inline-flex; align-items: center; gap: 5px; padding: 2px 6px; background: #ffffff; border: 1px solid #cbd3df; border-radius: 4px; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12); color: #172033; font-size: 10px; white-space: nowrap; }
 .plotly-wrap .modebar { background: transparent; }
 .chart-svg { display: block; }
 .chart-card:fullscreen { display: flex; flex-direction: column; width: 100vw; height: 100vh; border-radius: 0; overflow: auto; }
@@ -82,6 +83,8 @@ button { cursor: pointer; }
 .legend-pill { display: inline-flex; gap: 3px; align-items: center; white-space: nowrap; border-radius: 3px; color: #344054; }
 .legend-pill.active { color: #143b7d; }
 .legend-pill.isolated { background: #e8f0ff; color: #143b7d; }
+.inspector-row.isolated { background: #e8f0ff; box-shadow: inset 2px 0 0 #315caa; }
+.inspector-showall { padding: 3px 6px !important; color: #315caa; font-weight: 600; text-align: left; }
 .legend-drawer { position: fixed; right: 20px; bottom: 20px; z-index: 50; width: min(520px, calc(100vw - 40px)); max-height: min(520px, calc(100vh - 40px)); background: white; border: 1px solid #cbd3df; border-radius: 8px; box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18); padding: 8px; }
 .drawer-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .legend-drawer input { width: 100%; border: 1px solid #cbd3df; border-radius: 5px; padding: 4px 6px; margin-bottom: 6px; }

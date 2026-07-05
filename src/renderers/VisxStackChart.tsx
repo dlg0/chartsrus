@@ -47,6 +47,20 @@ export function VisxStackChart({ spec, chartKind, chartType, viewMode, showNetLi
   const wedgeScale = scaleLinear({ domain: [wedgeDomain[0] * 1.08, wedgeDomain[1] * 1.08], range: [innerHeight, 0], nice: true })
   const selectedYear = inspection.pinnedYear ?? inspection.activeYear
 
+  // The active data point (for the horizontal crosshair) is the series under the pointer. Its y is the
+  // mid of its stack/wedge cell, or its raw value on a line chart; a horizontal dotted line marks it to
+  // match the vertical year line. Only shown while a series is actively hovered.
+  const activeStackCell = inspection.activeSeriesKey != null && selectedYear != null
+    ? cells.find((cell) => cell.key === inspection.activeSeriesKey && cell.year === selectedYear && !cell.isMissing && cell.sign !== 'zero')
+    : undefined
+  const activeWedgeCell = inspection.activeSeriesKey != null && selectedYear != null
+    ? wedgeCells.find((cell) => cell.key === inspection.activeSeriesKey && cell.year === selectedYear && !cell.isMissing && cell.sign !== 'zero')
+    : undefined
+  const activeLineRow = inspection.activeSeriesKey != null && selectedYear != null ? spec.data.find((row) => row.year === selectedYear) : undefined
+  const activeLineValue = activeLineRow && inspection.activeSeriesKey != null ? activeLineRow[inspection.activeSeriesKey] : null
+  // On the stacked chart the crosshair y is the raw series value in line mode, otherwise the mid of the active stack cell.
+  const stackCrossValue = chartType === 'line' ? activeLineValue : (activeStackCell ? (activeStackCell.y0 + activeStackCell.y1) / 2 : null)
+
   function setFocusFromPointer(clientX: number, clientY: number, rect: DOMRect) {
     const x = clientX - rect.left - margin.left
     const y = clientY - rect.top - margin.top
@@ -88,6 +102,7 @@ export function VisxStackChart({ spec, chartKind, chartType, viewMode, showNetLi
             return <polyline key={series.key} points={points} fill="none" stroke={colorForKey(spec, series.key)} strokeWidth={inspection.activeSeriesKey === series.key ? 2.5 : 1.6} opacity={inspection.activeSeriesKey && inspection.activeSeriesKey !== series.key ? 0.2 : 1} pointerEvents="none" />
           })}
           {selectedYear != null && <line className="cursor-line" x1={xScale(selectedYear)} x2={xScale(selectedYear)} y1={0} y2={innerHeight} />}
+          {activeLineValue != null && <line className="cursor-line" x1={0} x2={innerWidth} y1={lineScale(activeLineValue)} y2={lineScale(activeLineValue)} />}
           <AxisLeft scale={lineScale} tickLabelProps={{ fontSize: tokens.axisFontSize, fill: '#52606d', dx: -3, dy: 3, textAnchor: 'end' }} stroke="#c6ccd6" tickStroke="#c6ccd6" numTicks={4} />
           <AxisBottom top={innerHeight} scale={xScale} tickValues={xTicks} tickLabelProps={{ fontSize: tokens.axisFontSize, fill: '#52606d', dy: 2, textAnchor: 'middle' }} stroke="#c6ccd6" tickStroke="#c6ccd6" />
           <Bar x={0} y={0} width={innerWidth} height={innerHeight} fill="transparent" onPointerMove={(event) => setLineFocus(event.clientX, event.clientY, event.currentTarget.ownerSVGElement!.getBoundingClientRect())} onPointerLeave={() => setInspection((state) => ({ ...state, activeSeriesKey: null }))} onClick={() => setInspection((state) => ({ ...state, pinnedYear: state.pinnedYear === state.activeYear ? null : state.activeYear }))} />
@@ -159,6 +174,7 @@ export function VisxStackChart({ spec, chartKind, chartType, viewMode, showNetLi
           <polyline points={wedgeLines.filter((point) => point.counterfactual != null).map((point) => `${xScale(point.year)},${wedgeScale(point.counterfactual ?? 0)}`).join(' ')} fill="none" stroke="#0f172a" strokeWidth={3} strokeDasharray="6 4" pointerEvents="none" />
           <polyline points={wedgeLines.filter((point) => point.factual != null).map((point) => `${xScale(point.year)},${wedgeScale(point.factual ?? 0)}`).join(' ')} fill="none" stroke="#dc2626" strokeWidth={3.2} pointerEvents="none" />
           {selectedYear != null && <line className="cursor-line" x1={xScale(selectedYear)} x2={xScale(selectedYear)} y1={0} y2={innerHeight} />}
+          {activeWedgeCell && <line className="cursor-line" x1={0} x2={innerWidth} y1={wedgeScale((activeWedgeCell.y0 + activeWedgeCell.y1) / 2)} y2={wedgeScale((activeWedgeCell.y0 + activeWedgeCell.y1) / 2)} />}
           <AxisLeft scale={wedgeScale} tickLabelProps={{ fontSize: tokens.axisFontSize, fill: '#52606d', dx: -3, dy: 3, textAnchor: 'end' }} stroke="#c6ccd6" tickStroke="#c6ccd6" numTicks={4} />
           <AxisBottom top={innerHeight} scale={xScale} tickValues={xTicks} tickLabelProps={{ fontSize: tokens.axisFontSize, fill: '#52606d', dy: 2, textAnchor: 'middle' }} stroke="#c6ccd6" tickStroke="#c6ccd6" />
           <Bar x={0} y={0} width={innerWidth} height={innerHeight} fill="transparent" onPointerMove={(event) => setWedgeFocus(event.clientX, event.clientY, event.currentTarget.ownerSVGElement!.getBoundingClientRect())} onPointerLeave={() => setInspection((state) => ({ ...state, activeSeriesKey: null }))} onClick={() => setInspection((state) => ({ ...state, pinnedYear: state.pinnedYear === state.activeYear ? null : state.activeYear }))} />
@@ -217,6 +233,7 @@ export function VisxStackChart({ spec, chartKind, chartType, viewMode, showNetLi
           />
         ))}
         {selectedYear != null && <line className="cursor-line" x1={xScale(selectedYear)} x2={xScale(selectedYear)} y1={0} y2={innerHeight} />}
+        {stackCrossValue != null && <line className="cursor-line" x1={0} x2={innerWidth} y1={yScale(stackCrossValue)} y2={yScale(stackCrossValue)} />}
         {showTargets && <polyline points={targets.map((point) => `${xScale(point.year)},${yScale(point.target)}`).join(' ')} fill="none" stroke="#7c3aed" strokeWidth={1.4} strokeDasharray="5 4" pointerEvents="none" />}
         {showNetLine && <polyline points={net.map((point) => `${xScale(point.year)},${yScale(point.net)}`).join(' ')} fill="none" stroke="#111827" strokeWidth={1.5} pointerEvents="none" />}
         <AxisLeft scale={yScale} tickLabelProps={{ fontSize: tokens.axisFontSize, fill: '#52606d', dx: -3, dy: 3, textAnchor: 'end' }} stroke="#c6ccd6" tickStroke="#c6ccd6" numTicks={4} />

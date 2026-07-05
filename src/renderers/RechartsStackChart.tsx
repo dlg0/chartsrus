@@ -51,6 +51,17 @@ export function RechartsStackChart({ spec, chartKind, chartType, viewMode, showN
   const barBands = useMemo(() => barXBands(years), [years])
   const barBandByYear = useMemo(() => new Map(barBands.map((band) => [band.year, band])), [barBands])
   const selectedYear = inspection.pinnedYear ?? inspection.activeYear
+  // Active data point for the horizontal crosshair: the series under the pointer. y is the raw value on
+  // a line chart, otherwise the mid of its stack/wedge cell. Only drawn while a series is hovered.
+  const activeStackCell = inspection.activeSeriesKey != null && selectedYear != null
+    ? cells.find((cell) => cell.key === inspection.activeSeriesKey && cell.year === selectedYear && !cell.isMissing && cell.sign !== 'zero')
+    : undefined
+  const activeWedgeCell = inspection.activeSeriesKey != null && selectedYear != null
+    ? wedgeCells.find((cell) => cell.key === inspection.activeSeriesKey && cell.year === selectedYear && !cell.isMissing && cell.sign !== 'zero')
+    : undefined
+  const activeLineRow = inspection.activeSeriesKey != null && selectedYear != null ? spec.data.find((row) => row.year === selectedYear) : undefined
+  const activeLineValue = activeLineRow && inspection.activeSeriesKey != null ? activeLineRow[inspection.activeSeriesKey] : null
+  const stackCrossValue = chartType === 'line' ? activeLineValue : (activeStackCell ? (activeStackCell.y0 + activeStackCell.y1) / 2 : null)
   const Component = chartType === 'area' ? AreaChart : chartType === 'line' ? LineChart : BarChart
   const signChangingKeys = useMemo(() => getSignChangingSeriesKeys(spec.data, spec.series), [spec])
   const stackOrder = useMemo(() => [
@@ -157,6 +168,7 @@ export function RechartsStackChart({ spec, chartKind, chartType, viewMode, showN
             <Tooltip content={() => null} cursor={false} />
             <ReferenceLine y={0} stroke="#697386" />
             {selectedYear != null && <ReferenceLine x={selectedYear} stroke="#111827" strokeDasharray="3 3" />}
+            {activeLineValue != null && <ReferenceLine y={activeLineValue} stroke="#111827" strokeDasharray="3 3" />}
             {spec.series.map((series) => <Line key={series.key} type={spec.options.interpolation === 'step' ? 'stepAfter' : 'linear'} dataKey={series.key} dot={false} stroke={colorForKey(spec, series.key)} strokeWidth={inspection.activeSeriesKey === series.key ? 2.5 : 1.6} strokeOpacity={inspection.activeSeriesKey && inspection.activeSeriesKey !== series.key ? 0.2 : 1} isAnimationActive={false} />)}
           </AreaChart>
         </ResponsiveContainer>
@@ -203,6 +215,7 @@ export function RechartsStackChart({ spec, chartKind, chartType, viewMode, showN
             <polyline points={wedgeLines.filter((point) => point.counterfactual != null).map((point) => `${xScale(point.year)},${yScale(point.counterfactual ?? 0)}`).join(' ')} fill="none" stroke="#0f172a" strokeWidth={3} strokeDasharray="6 4" pointerEvents="none" />
             <polyline points={wedgeLines.filter((point) => point.factual != null).map((point) => `${xScale(point.year)},${yScale(point.factual ?? 0)}`).join(' ')} fill="none" stroke="#dc2626" strokeWidth={3.2} pointerEvents="none" />
             {selectedYear != null && <line className="cursor-line" x1={xScale(selectedYear)} x2={xScale(selectedYear)} y1={0} y2={innerHeight} />}
+            {activeWedgeCell && <line className="cursor-line" x1={0} x2={innerWidth} y1={yScale((activeWedgeCell.y0 + activeWedgeCell.y1) / 2)} y2={yScale((activeWedgeCell.y0 + activeWedgeCell.y1) / 2)} />}
             {wedgeTicks.map((tick) => <text key={tick} x={-4} y={yScale(tick) + 3} textAnchor="end" fontSize={tokens.axisFontSize} fill="#52606d">{tick}</text>)}
             {xTicks.map((tick) => <text key={tick} x={xScale(tick)} y={innerHeight + 14} textAnchor="middle" fontSize={tokens.axisFontSize} fill="#52606d">{tick}</text>)}
           </g>
@@ -225,6 +238,7 @@ export function RechartsStackChart({ spec, chartKind, chartType, viewMode, showN
             <Tooltip content={() => null} cursor={false} />
             <ReferenceLine y={0} stroke="#697386" />
             {selectedYear != null && <ReferenceLine x={selectedYear} stroke="#111827" strokeDasharray="3 3" />}
+            {activeWedgeCell && <ReferenceLine y={(activeWedgeCell.y0 + activeWedgeCell.y1) / 2} stroke="#111827" strokeDasharray="3 3" />}
             <Bar dataKey="factualBackground" fill="#64748b" fillOpacity={0.08} stroke="#94a3b8" strokeOpacity={0.18} isAnimationActive={false} shape={renderVariableWidthBar} />
             <Bar dataKey="factualBackground" fill={`url(#${factualHashPatternId})`} fillOpacity={0.65} isAnimationActive={false} shape={renderVariableWidthBar} />
             {spec.series.map((series) => <Bar key={series.key} dataKey={series.key} fill={colorForKey(spec, series.key)} fillOpacity={inspection.activeSeriesKey && inspection.activeSeriesKey !== series.key ? 0.18 : 0.78} isAnimationActive={false} shape={renderVariableWidthBar} />)}
@@ -246,6 +260,7 @@ export function RechartsStackChart({ spec, chartKind, chartType, viewMode, showN
           <Tooltip content={() => null} cursor={false} />
           <ReferenceLine y={0} stroke="#697386" />
           {selectedYear != null && <ReferenceLine x={selectedYear} stroke="#111827" strokeDasharray="3 3" />}
+          {stackCrossValue != null && <ReferenceLine y={stackCrossValue} stroke="#111827" strokeDasharray="3 3" />}
           {chartType === 'line'
             ? spec.series.map((series) => (
               <Line key={series.key} type={spec.options.interpolation === 'step' ? 'stepAfter' : 'linear'} dataKey={series.key} stroke={colorForKey(spec, series.key)} strokeWidth={1.5} strokeOpacity={inspection.activeSeriesKey && inspection.activeSeriesKey !== series.key ? 0.18 : 0.9} dot={false} isAnimationActive={false} connectNulls={false} />

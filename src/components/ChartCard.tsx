@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { toPng } from 'html-to-image'
 import { specForViewMode } from '../chartDerivedData'
+import { colorForKey } from '../colors'
 import { densityTokens } from '../density'
-import { stackBySign, yearsFromSpec } from '../stackUtils'
+import { formatValue, getSlice, middleTruncate, stackBySign, yearsFromSpec } from '../stackUtils'
 import type { ChartKind, ChartType, ChartViewMode, InspectionState, RendererProps, RoleResultMode, StackChartSpec, StackDatum } from '../types'
 import { useMeasure } from '../useMeasure'
 import { CompactLegend } from './CompactLegend'
@@ -39,6 +40,7 @@ export function ChartCard({ name, spec, chartKind, chartType, modeSpecs, Rendere
   const [toolsOpen, setToolsOpen] = useState(false)
   const [inspectorOpen, setInspectorOpen] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [cursor, setCursor] = useState<{ x: number, y: number } | null>(null)
   const selectedYear = inspection.pinnedYear ?? inspection.activeYear
   const [plotRef, plotSize] = useMeasure<HTMLDivElement>()
   const exportRef = useRef<HTMLElement | null>(null)
@@ -57,7 +59,20 @@ export function ChartCard({ name, spec, chartKind, chartType, modeSpecs, Rendere
     }
   }, [activeSpec, isolatedSeriesKeys])
   const renderSpec = useMemo(() => specForViewMode(isolatedSpec, effectiveChartKind === 'stack' ? viewMode : 'regular'), [effectiveChartKind, isolatedSpec, viewMode])
-  useMemo(() => stackBySign(renderSpec.data, renderSpec.series), [renderSpec])
+  // The inspector lists every series (never the isolation-filtered set) so isolation can be toggled
+  // on or off from it. Same viewMode transform as the plot, but built from the full activeSpec.
+  const inspectorSpec = useMemo(() => specForViewMode(activeSpec, effectiveChartKind === 'stack' ? viewMode : 'regular'), [activeSpec, effectiveChartKind, viewMode])
+
+  // Mirror the compact inspector's "second row" (the active/top series) so the hover tooltip shows
+  // exactly the same text. Same source and ordering as StackSliceInspector: stack cells for the
+  // selected year, sorted by magnitude, then the active series or the largest one as a fallback.
+  const inspectorCells = useMemo(() => stackBySign(inspectorSpec.data, inspectorSpec.series), [inspectorSpec])
+  const activeRow = useMemo(() => {
+    const slice = selectedYear == null ? null : getSlice(inspectorCells, selectedYear)
+    if (!slice) return null
+    const rows = slice.cells.filter((cell) => !cell.isMissing).sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
+    return rows.find((cell) => cell.key === inspection.activeSeriesKey) ?? rows[0] ?? null
+  }, [inspectorCells, selectedYear, inspection.activeSeriesKey])
 
   async function saveImage(full = false) {
     if (!exportRef.current) return
@@ -175,18 +190,38 @@ export function ChartCard({ name, spec, chartKind, chartType, modeSpecs, Rendere
           )}
         </div>
       </header>
-      {isolatedSeriesKeys.size > 0 && <div className="isolation-banner">Only isolated traces are plotted. Click legend rows to add/remove traces, or use show all.</div>}
-      <CompactLegend spec={activeSpec} activeSeriesKey={inspection.activeSeriesKey} isolatedSeriesKeys={isolatedSeriesKeys} forceFull={showFullDetail} setIsolatedSeriesKeys={setIsolatedSeriesKeys} setInspection={setInspection} />
+      {isolatedSeriesKeys.size > 0 && <div className="isolation-banner">Only isolated traces are plotted. Click inspector rows to add/remove traces, or use show all.</div>}
+      <CompactLegend spec={activeSpec} activeSeriesKey={inspection.activeSeriesKey} forceFull={showFullDetail} setInspection={setInspection} />
       <div className="chart-card-body">
-        <div className="plot-column">
+        <div
+          className="plot-column"
+          onPointerMove={(event) => {
+            const rect = event.currentTarget.getBoundingClientRect()
+            setCursor({ x: event.clientX - rect.left, y: event.clientY - rect.top })
+          }}
+          onPointerLeave={() => setCursor(null)}
+        >
           <div className="plot-host" ref={plotRef}>
             {plotSize.width > 20 && plotSize.height > 20 && (
               <Renderer spec={renderSpec} chartKind={effectiveChartKind} chartType={effectiveChartType} viewMode={viewMode} showNetLine={showNetLine} showTargets={showTargets} width={plotSize.width} height={plotSize.height} inspection={inspection} setInspection={setInspection} />
             )}
           </div>
+          {cursor != null && activeRow != null && (
+            <div
+              className="hover-tooltip"
+              data-export-ignore="true"
+              style={cursor.x > (plotSize.width || 0) * 0.6
+                ? { left: cursor.x - 12, top: cursor.y + 14, transform: 'translateX(-100%)' }
+                : { left: cursor.x + 12, top: cursor.y + 14 }}
+            >
+              <span className="chip" style={{ background: colorForKey(inspectorSpec, activeRow.key) }} />
+              <span>{inspection.activeSeriesKey ? 'Active' : 'Top'}: {middleTruncate(activeRow.shortLabel, 28)}</span>
+              <strong>{formatValue(activeRow.value, inspectorSpec.unit)}</strong>
+            </div>
+          )}
         </div>
       </div>
-      <StackSliceInspector spec={renderSpec} selectedYear={selectedYear} activeSeriesKey={inspection.activeSeriesKey} isOpen={inspectorOpen} forceFull={showFullDetail} onOpenChange={setInspectorOpen} setInspection={setInspection} />
+      <StackSliceInspector spec={inspectorSpec} selectedYear={selectedYear} activeSeriesKey={inspection.activeSeriesKey} isolatedSeriesKeys={isolatedSeriesKeys} isOpen={inspectorOpen} forceFull={showFullDetail} onOpenChange={setInspectorOpen} setIsolatedSeriesKeys={setIsolatedSeriesKeys} setInspection={setInspection} />
     </section>
   )
 }

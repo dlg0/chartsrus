@@ -51,10 +51,21 @@ export function ObservablePlotStackChart({ spec, chartKind, chartType, viewMode,
   const yMin = Math.min(chartType === 'line' ? valueMin : stackMin, ...overlayValues)
   const yMax = Math.max(chartType === 'line' ? valueMax : stackMax, ...overlayValues)
   const selectedYear = inspection.pinnedYear ?? inspection.activeYear
+  // Active data point for the horizontal crosshair: the series under the pointer. y is the raw value on
+  // a line chart, otherwise the mid of its stack/wedge cell. Only drawn while a series is hovered.
+  const activeStackCell = inspection.activeSeriesKey != null && selectedYear != null
+    ? cells.find((cell) => cell.key === inspection.activeSeriesKey && cell.year === selectedYear && !cell.isMissing && cell.sign !== 'zero')
+    : undefined
+  const activeLineRow = inspection.activeSeriesKey != null && selectedYear != null ? spec.data.find((row) => row.year === selectedYear) : undefined
+  const activeLineValue = activeLineRow && inspection.activeSeriesKey != null ? activeLineRow[inspection.activeSeriesKey] : null
+  const stackCrossValue = chartType === 'line' ? activeLineValue : (activeStackCell ? (activeStackCell.y0 + activeStackCell.y1) / 2 : null)
   const lineDomain = lineExtent(spec.data, spec.series)
   const wedgeLines = useMemo(() => counterfactualLineData(spec.data, spec.series), [spec])
   const wedgeCells = useMemo(() => counterfactualCells(spec.data, spec.series), [spec])
   const wedgeDomain = counterfactualExtent(wedgeCells, wedgeLines)
+  const activeWedgeCell = inspection.activeSeriesKey != null && selectedYear != null
+    ? wedgeCells.find((cell) => cell.key === inspection.activeSeriesKey && cell.year === selectedYear && !cell.isMissing && cell.sign !== 'zero')
+    : undefined
   const barBands = useMemo(() => barXBands(years), [years])
   const barBandByYear = useMemo(() => new Map(barBands.map((band) => [band.year, band])), [barBands])
   const withBarBand = <T extends { year: number }>(item: T) => ({ ...item, ...barBandByYear.get(item.year) })
@@ -73,6 +84,7 @@ export function ObservablePlotStackChart({ spec, chartKind, chartType, viewMode,
           strokeOpacity: inspection.activeSeriesKey && inspection.activeSeriesKey !== series.key ? 0.2 : 1,
         })),
         ...(selectedYear == null ? [] : [Plot.ruleX([selectedYear], { stroke: '#111827', strokeDasharray: '3 3' })]),
+        ...(activeLineValue == null ? [] : [Plot.ruleY([activeLineValue], { stroke: '#111827', strokeDasharray: '3 3' })]),
       ]
       const plot = Plot.plot({
         width,
@@ -135,6 +147,7 @@ export function ObservablePlotStackChart({ spec, chartKind, chartType, viewMode,
           Plot.lineY(wedgeLines, { x: 'year', y: 'counterfactual', stroke: '#0f172a', strokeWidth: 3, strokeDasharray: '6 4' }),
           Plot.lineY(wedgeLines, { x: 'year', y: 'factual', stroke: '#dc2626', strokeWidth: 3.2 }),
           ...(selectedYear == null ? [] : [Plot.ruleX([selectedYear], { stroke: '#111827', strokeDasharray: '3 3' })]),
+          ...(activeWedgeCell == null ? [] : [Plot.ruleY([(activeWedgeCell.y0 + activeWedgeCell.y1) / 2], { stroke: '#111827', strokeDasharray: '3 3' })]),
         ],
       })
       if (plot instanceof SVGSVGElement) addFactualHashPattern(plot)
@@ -170,6 +183,7 @@ export function ObservablePlotStackChart({ spec, chartKind, chartType, viewMode,
       ...(showTargets ? [Plot.lineY(targets, { x: 'year', y: 'target', stroke: '#7c3aed', strokeWidth: 1.4, strokeDasharray: '5 4' })] : []),
       ...(showNetLine ? [Plot.lineY(net, { x: 'year', y: 'net', stroke: '#111827', strokeWidth: 1.5 })] : []),
       ...(selectedYear == null ? [] : [Plot.ruleX([selectedYear], { stroke: '#111827', strokeDasharray: '3 3' })]),
+      ...(stackCrossValue == null ? [] : [Plot.ruleY([stackCrossValue], { stroke: '#111827', strokeDasharray: '3 3' })]),
     ]
 
     const plot = Plot.plot({
