@@ -9,6 +9,17 @@ import type { ChartDensity, ChartKind, ChartType, RendererProps, RoleResultMode,
 
 type ChartColumns = 1 | 2 | 3 | 4
 
+// Top-level verdict (oracle's ranked assessment against this project's actual goal: a stable,
+// high-density diverging-stack chart model, not generic charting quality). yes/no + one-line reason.
+// Ranked fit: 1) visx, 2) Observable Plot, 3) Plotly, 4) Recharts.
+const verdictRow: [string, string, string, string, string] = [
+  'Recommended for this project?',
+  'no — cannot consume explicit y0/y1 stack geometry; honest gaps at sign changes (rank 4)',
+  'yes — renders the shared geometry directly with the least code (rank 2)',
+  'yes — full control of geometry, axes, and interaction; reference fit (rank 1)',
+  'no — bypasses its own stacking/hover/legend/zoom to comply; ~2× bundle (rank 3)',
+]
+
 const comparisonRows: Array<[string, string, string, string, string]> = [
   ['diverging stack correctness', 'acceptable', 'good', 'good', 'good'],
   ['sign-changing series handling', 'acceptable', 'good', 'good', 'good'],
@@ -106,7 +117,13 @@ export function App() {
         <h2>Comparison checklist</h2>
         <table>
           <thead><tr><th>Criterion</th><th>Recharts</th><th>Observable Plot</th><th>visx + D3</th><th>Plotly</th></tr></thead>
-          <tbody>{comparisonRows.map(([criterion, recharts, plot, visx, plotly]) => <tr key={criterion}><th>{criterion}</th><td>{recharts}</td><td>{plot}</td><td>{visx}</td><td>{plotly}</td></tr>)}</tbody>
+          <tbody>
+            <tr className="verdict-row">
+              <th>{verdictRow[0]}</th>
+              {verdictRow.slice(1).map((verdict, index) => <td key={index} className={verdict.startsWith('yes') ? 'verdict-yes' : 'verdict-no'}>{verdict}</td>)}
+            </tr>
+            {comparisonRows.map(([criterion, recharts, plot, visx, plotly]) => <tr key={criterion}><th>{criterion}</th><td>{recharts}</td><td>{plot}</td><td>{visx}</td><td>{plotly}</td></tr>)}
+          </tbody>
         </table>
       </section>
     </main>

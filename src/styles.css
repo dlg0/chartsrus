@@ -93,6 +93,10 @@ button { cursor: pointer; }
 table { width: 100%; border-collapse: collapse; font-size: 12px; }
 th, td { border-top: 1px solid #e3e7ee; padding: 5px 6px; text-align: left; }
 tbody th { font-weight: 500; color: #344054; }
+.verdict-row th, .verdict-row td { border-top: 2px solid #9aa4b2; border-bottom: 2px solid #9aa4b2; padding: 7px 6px; font-weight: 600; vertical-align: top; }
+.verdict-row th { color: #172033; }
+.verdict-yes { color: #166534; }
+.verdict-no { color: #9f1239; }
 td { color: #52606d; }
 @media (max-width: 760px) {
   .hero { grid-template-columns: 1fr; }
