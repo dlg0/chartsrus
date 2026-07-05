@@ -1,55 +1,14 @@
 import { useMemo, useState } from 'react'
 import { ChartCard } from './components/ChartCard'
 import { counterfactualSpec, lineSpec, roleResultCapSpec, roleResultOutputSpec, specWithDensity, specWithOptions } from './fixture'
-import { ObservablePlotStackChart } from './renderers/ObservablePlotStackChart'
-import { PlotlyStackChart } from './renderers/PlotlyStackChart'
-import { RechartsStackChart } from './renderers/RechartsStackChart'
 import { VisxStackChart } from './renderers/VisxStackChart'
-import type { ChartDensity, ChartKind, ChartType, RendererProps, RoleResultMode, StackChartSpec } from './types'
-
-type ChartColumns = 1 | 2 | 3 | 4
-
-// Top-level verdict (oracle's ranked assessment against this project's actual goal: a stable,
-// high-density diverging-stack chart model, not generic charting quality). yes/no + one-line reason.
-// Ranked fit: 1) visx, 2) Observable Plot, 3) Plotly, 4) Recharts.
-const verdictRow: [string, string, string, string, string] = [
-  'Recommended for this project?',
-  'no — cannot consume explicit y0/y1 stack geometry; honest gaps at sign changes (rank 4)',
-  'yes — renders the shared geometry directly with the least code (rank 2)',
-  'yes — full control of geometry, axes, and interaction; reference fit (rank 1)',
-  'no — bypasses its own stacking/hover/legend/zoom to comply; ~2× bundle (rank 3)',
-]
-
-const comparisonRows: Array<[string, string, string, string, string]> = [
-  ['diverging stack correctness', 'acceptable', 'good', 'good', 'good'],
-  ['sign-changing series handling', 'acceptable', 'good', 'good', 'good'],
-  ['irregular x spacing', 'good', 'good', 'good', 'good'],
-  ['dense layout control', 'acceptable', 'good', 'good', 'good'],
-  ['custom docked inspector', 'good', 'good', 'good', 'acceptable'],
-  ['compact legend/drawer', 'good', 'good', 'good', 'good'],
-  ['keyboard inspection', 'good', 'good', 'good', 'acceptable'],
-  ['React state integration', 'good', 'awkward', 'good', 'awkward'],
-  ['implementation complexity', 'low', 'medium', 'high', 'high'],
-  ['perceived maintainability', 'acceptable', 'acceptable', 'good', 'acceptable'],
-  ['performance with 20 series', 'good', 'good', 'good', 'good'],
-  ['visual polish', 'acceptable', 'good', 'acceptable', 'good'],
-  ['bundle size / footprint', 'good', 'good', 'good', 'poor'],
-  ['export/screenshot suitability', 'good', 'good', 'good', 'good'],
-]
-
-const renderers: Array<{ name: string, Renderer: React.ComponentType<RendererProps>, nativeModebar?: boolean }> = [
-  { name: 'Recharts', Renderer: RechartsStackChart },
-  { name: 'Observable Plot', Renderer: ObservablePlotStackChart },
-  { name: 'visx + D3', Renderer: VisxStackChart },
-  { name: 'Plotly', Renderer: PlotlyStackChart, nativeModebar: true },
-]
+import type { ChartDensity, ChartKind, ChartType, RoleResultMode, StackChartSpec } from './types'
 
 export function App() {
   const [density, setDensity] = useState<ChartDensity>('dense')
   const [interpolation, setInterpolation] = useState<StackChartSpec['options']['interpolation']>('linear')
   const [useFullSeries, setUseFullSeries] = useState(true)
   const [chartType, setChartType] = useState<ChartType>('area')
-  const [chartColumns, setChartColumns] = useState<ChartColumns>(4)
   const [resetKey, setResetKey] = useState(0)
   const spec = useMemo(() => specWithOptions(density, interpolation, useFullSeries), [density, interpolation, useFullSeries])
   const decompositionSpec = useMemo(() => specWithDensity(counterfactualSpec, density), [density])
@@ -65,13 +24,8 @@ export function App() {
           <h2 id={`${chartKind}-row-heading`}>{title}</h2>
           <p>{description}</p>
         </div>
-        <div className="cards" style={{ '--chart-columns': chartColumns } as React.CSSProperties}>
-          {renderers.map(({ name, Renderer, nativeModebar }) => (
-            <div className="chart-column" key={`${chartKind}-${name}`}>
-              <h3>{name}</h3>
-              <ChartCard name={name} spec={rowSpec} chartKind={chartKind} chartType={rowChartType} modeSpecs={modeSpecs} Renderer={Renderer} nativeModebar={nativeModebar} />
-            </div>
-          ))}
+        <div className="cards">
+          <ChartCard name="visx" spec={rowSpec} chartKind={chartKind} chartType={rowChartType} modeSpecs={modeSpecs} Renderer={VisxStackChart} />
         </div>
       </section>
     )
@@ -81,15 +35,14 @@ export function App() {
     <main className="chart-lab">
       <section className="hero">
         <div>
-          <h1>Chart bake-off</h1>
-          <p>Dense React chart prototypes for analyst-grade energy and emissions modelling outputs. Highcharts intentionally excluded.</p>
+          <h1>Production chart renderer</h1>
+          <p>Dense React charts for analyst-grade energy and emissions modelling outputs, built on the visx renderer selected by the bake-off.</p>
         </div>
         <div className="controls" aria-label="Chart controls">
           <label>Density <select value={density} onChange={(event) => setDensity(event.target.value as ChartDensity)}><option>comfortable</option><option>compact</option><option>dense</option></select></label>
           <label>Interpolation <select value={interpolation} onChange={(event) => setInterpolation(event.target.value as StackChartSpec['options']['interpolation'])}><option>linear</option><option>step</option></select></label>
           <label>Series <select value={useFullSeries ? 'full' : 'grouped'} onChange={(event) => setUseFullSeries(event.target.value === 'full')}><option value="full">full</option><option value="grouped">reduced</option></select></label>
           <label>Chart type <select value={chartType} onChange={(event) => setChartType(event.target.value as ChartType)}><option>area</option><option>bar</option><option>line</option></select></label>
-          <label>Columns <select value={chartColumns} onChange={(event) => setChartColumns(Number(event.target.value) as ChartColumns)}><option value={1}>1</option><option value={2}>2</option><option value={3}>3</option><option value={4}>4</option></select></label>
           <button type="button" onClick={() => setResetKey((key) => key + 1)}>reset inspection</button>
         </div>
       </section>
@@ -113,19 +66,6 @@ export function App() {
         {renderRow('Counterfactual decomposition', 'Base-vs-Focus wedge: contributor geometry follows the same global area/bar chart-type toggle.', 'counterfactual', decompositionSpec, chartType)}
         {renderRow('Line chart trajectories', 'Standard multi-series model output chart for demand, supply, residual emissions, and delivery indices.', 'line', trajectorySpec, 'area')}
       </div>
-      <section className="comparison-panel">
-        <h2>Comparison checklist</h2>
-        <table>
-          <thead><tr><th>Criterion</th><th>Recharts</th><th>Observable Plot</th><th>visx + D3</th><th>Plotly</th></tr></thead>
-          <tbody>
-            <tr className="verdict-row">
-              <th>{verdictRow[0]}</th>
-              {verdictRow.slice(1).map((verdict, index) => <td key={index} className={verdict.startsWith('yes') ? 'verdict-yes' : 'verdict-no'}>{verdict}</td>)}
-            </tr>
-            {comparisonRows.map(([criterion, recharts, plot, visx, plotly]) => <tr key={criterion}><th>{criterion}</th><td>{recharts}</td><td>{plot}</td><td>{visx}</td><td>{plotly}</td></tr>)}
-          </tbody>
-        </table>
-      </section>
     </main>
   )
 }

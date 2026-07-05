@@ -1,5 +1,9 @@
 # Chart renderer comparison notes
 
+## Decision
+
+The bake-off is closed. **visx + D3 is the selected production renderer** because it directly consumes the shared explicit geometry (`StackCell[]` / `signedBands`) while keeping scales, hit-testing, layout, and interaction in React-owned code. The other implementations were removed from the application and dependency graph; their notes remain here as the decision record.
+
 ## Recharts
 
 ### What worked

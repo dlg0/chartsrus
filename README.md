@@ -1,17 +1,23 @@
-# Chart renderer bake-off
+# Production chart renderer
 
-This is a fresh React + TypeScript + Vite prototype for comparing chart-rendering approaches for dense analytical modelling outputs. It evaluates:
+This React + TypeScript + Vite app is the production path that came out of the chart-renderer bake-off. The bake-off compared Recharts, Observable Plot, visx + D3, and Plotly for dense analytical modelling outputs. **visx + D3 won** because it directly renders the shared explicit chart geometry while preserving React ownership of state, layout, and interaction.
 
-- Recharts
-- Observable Plot embedded in React
-- visx + D3
-- Plotly (partial `plotly.js-basic-dist-min` bundle)
+Highcharts was intentionally not included in the bake-off.
 
-Highcharts is intentionally not included.
+## Production direction
 
-## Purpose
+The renderer is built around a library-neutral `StackChartSpec` and shared geometry/inspection utilities. The selected visx renderer consumes that source of truth directly for:
 
-The goal is not a polished demo. The goal is to stress-test whether each renderer can support a stable, high-density chart model for energy and emissions modelling outputs: fixed plot geometry, compact legends, docked stack-slice inspection, irregular model years, and correct positive/negative diverging stack semantics.
+- fixed plot geometry;
+- compact shared legend with drawer;
+- docked slice-first inspector;
+- irregular model years;
+- positive/negative diverging stacks;
+- sign-changing series that keep one logical colour and identity;
+- regular/cumulative mode, net line, and NDC target overlays;
+- fullscreen plus compact/full PNG export.
+
+The previous non-winning renderers have been removed from the app and dependencies. See [`docs/comparison-notes.md`](docs/comparison-notes.md) for the bake-off decision record and limitations found in each library.
 
 ## Install and run
 
@@ -34,7 +40,7 @@ npm run build
 
 ## Fixture coverage
 
-The shared fixture uses the same library-neutral `StackChartSpec` for every renderer. It includes:
+The shared fixture uses the same library-neutral `StackChartSpec` shape across the chart cards. It includes:
 
 - irregular model years: 2025, 2026, 2027, 2030, 2035, 2040, 2050, 2060, 2070;
 - 26 Australia emissions sector/subsector series with long canonical labels and compact display labels;
@@ -42,48 +48,8 @@ The shared fixture uses the same library-neutral `StackChartSpec` for every rend
 - sign-changing stress-test series: `Reversal buffer` goes from negative to positive, and `Bio/e-fuels` goes from positive to negative;
 - non-linear sector progressions loosely shaped like an Australia decarbonisation scenario, but clearly prototype-only rather than official projections.
 
-## What to compare
+## Current production gaps
 
-Look for these behaviours in the `ChartLab` page:
-
-- stable plot geometry as legends and inspectors change;
-- no intrusive floating tooltip;
-- **Legend**: compact colour legend with a drawer for all series;
-- double-click a legend/drawer row to isolate one trace; while isolated, click additional legend/drawer rows to add/remove traces, or use `show all`;
-- **Inspector**: a one-line selected-year strip by default; click it or pin a year to expand the compact value/composition table;
-- per-chart tools for regular/cumulative mode, net line, and NDC target overlay;
-- `save image` on each chart card exports a high-resolution PNG of that compact card as displayed;
-- `save full` exports the chart with all legend items and all inspector rows expanded inside the saved image;
-- `full` on each chart card (a header button, or Plotly's native modebar button) expands that card to fill the screen and forces the same full detail (every legend item and every inspector row visible) while the plot grows to fit; each renderer resizes into the larger area, Plotly included;
-- per-chart tools live in a header `tools ▾` popover (mode, net line, NDC overlay, save image/full); Plotly's native modebar dispatches to the same popover and card exports, kept as a demonstration of the Plotly↔React integration cost;
-- one to four chart columns via the columns control (four by default, so all renderers sit on one row);
-- docked slice-first inspector for the selected model year;
-- pointer inspection by nearest scaled year, not nearest polygon;
-- click-to-pin, Esc-to-clear, and left/right keyboard navigation;
-- hover/focus highlighting from legend and inspector rows;
-- correct positive and negative stack totals;
-- handling of sign-changing series without misleading polygons across zero. The shared stack transform places sign-changing series nearest the zero baseline on both positive and negative sides, preserving one logical colour and identity.
-
-## Renderer limitations
-
-### Recharts
-
-Recharts is quick to wire up and integrates naturally with React, but it does not cleanly consume explicit `y0`/`y1` stack cells as the rendered area geometry. This prototype uses the shared stack utility as the source of truth for domains, slices, totals, and inspection. For sign-changing series, it splits each logical series into positive and negative render keys with the same colour so Recharts does not draw a single misleading crossing area. It is still less explicit than the Observable Plot and visx versions.
-
-### Observable Plot
-
-Observable Plot has a concise grammar and can render explicit `y0`/`y1` geometry from `StackCell[]`. The latest official Observable Plot docs still recommend `useRef` + `useEffect` + remove/recreate for interactive client-side React usage; SSR/virtual-DOM rendering exists but is recommended only for simpler/smaller plots. So the integration is somewhat less React-native, but not an implementation mistake.
-
-### visx + D3
-
-visx + D3 requires the most code, but it owns scales, axes, paths, hit-testing, cursor, highlights, and explicit diverging stack geometry. It is the reference implementation for maximum control.
-
-### Plotly
-
-Plotly sits between Observable Plot and visx. Like Observable Plot it embeds a non-React chart through a ref, but it uses `Plotly.react` so updates diff in place instead of remove/recreate, and `uirevision` keeps UI toggles stable across those updates. It still consumes the shared `StackCell` y0/y1 geometry rather than Plotly's own stacking: each contiguous same-sign segment is one closed `fill: "toself"` polygon, so sign-changing series keep one colour and never draw a misleading area across zero. To stay inside the prototype's rules it defaults to the shared compact legend and docked inspector (Plotly's own legend and floating hover label are off by default), but it shows off the native parts that do not fight those rules: crisp gridlines and axes, an x spikeline that tracks the cursor, and a deliberately light modebar (the select-nearest/show-all hover toggles) with custom buttons for full screen and for toggling the native Plotly tooltip and legend; the PNG export is dropped in favour of the card's own save image / save full. Drag-zoom/pan is deliberately disabled: the shared inspector's pointer maths assume the static domain, so an interactive range change would silently desync inspection — a genuine friction point between Plotly's exploratory model and this project's fixed-geometry model. The native legend offers the usual click-to-hide and double-click-to-isolate, grouped one entry per series. Inspection itself runs off the renderer's own pointer maths (nearest scaled year, then cell-at-pointer), the same as the visx and Recharts versions, so the cursor never chases polygon vertices. Its main cost is bundle weight: even the partial `plotly.js-basic-dist-min` bundle is much larger than the other renderers, more than doubling the production build.
-
-All four renderers share the `area`/`bar`/`line` chart types. The shared `signedBands` transform builds full-width diverging-area bands that taper to zero thickness at the running base, so sign-changing series and series that decay to zero meet the baseline cleanly instead of leaving triangular white gaps at the transitions. **visx, Observable Plot, and Plotly** render this geometry directly and are gapless. **Recharts** cannot consume explicit `y0`/`y1` cells: it relies on its own `stackOffset="sign"` and leaves an honest gap at sign changes. Feeding it zeros for off-sign values does *not* close the gap — recharts anchors any non-negative value at the running positive cumulative, which would paint a misleading diagonal sliver — so the gap is left in place as a real Recharts limitation.
-
-## More notes
-
-See [`docs/comparison-notes.md`](docs/comparison-notes.md) for implementation notes and qualitative assessment.
+- Accessibility and keyboard workflows need a first hardening pass beyond the prototype interactions.
+- Worst-case real-data performance still needs to be measured with maximum expected series/year counts.
+- The shared `signedBands` transform tapers at model-year grid points; decide whether production needs interpolated sub-year zero-crossing vertices.

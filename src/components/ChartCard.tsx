@@ -17,13 +17,9 @@ type Props = {
   chartType: ChartType
   modeSpecs?: Partial<Record<RoleResultMode, StackChartSpec>>
   Renderer: React.ComponentType<RendererProps>
-  // When the renderer has its own modebar (Plotly), its native buttons dispatch bubbling DOM events
-  // ('chart-tools-toggle', 'chart-save-image', 'chart-save-full') that this card listens for. That
-  // bridge is deliberately kept as evidence of the Plotly<->React integration cost.
-  nativeModebar?: boolean
 }
 
-export function ChartCard({ name, spec, chartKind, chartType, modeSpecs, Renderer, nativeModebar = false }: Props) {
+export function ChartCard({ name, spec, chartKind, chartType, modeSpecs, Renderer }: Props) {
   const [roleResultMode, setRoleResultMode] = useState<RoleResultMode>('output')
   const activeSpec = chartKind === 'role-result' ? (modeSpecs?.[roleResultMode] ?? spec) : spec
   const effectiveChartKind: ChartKind = chartKind === 'role-result'
@@ -110,27 +106,6 @@ export function ChartCard({ name, spec, chartKind, chartType, modeSpecs, Rendere
     document.addEventListener('fullscreenchange', handleFullscreenChange)
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
   }, [])
-
-  // Plotly's native-modebar buttons can't reach this component's state directly, so they dispatch
-  // bubbling DOM events on the card that we handle here (tools popover, save image, save full).
-  // saveImage is re-created every render, so the listeners go through a ref to stay current.
-  const saveImageRef = useRef<(full?: boolean) => Promise<void>>(async () => {})
-  saveImageRef.current = saveImage
-  useEffect(() => {
-    const el = exportRef.current
-    if (!nativeModebar || !el) return
-    const toggleTools = () => setToolsOpen((open) => !open)
-    const save = () => void saveImageRef.current(false)
-    const saveFull = () => void saveImageRef.current(true)
-    el.addEventListener('chart-tools-toggle', toggleTools)
-    el.addEventListener('chart-save-image', save)
-    el.addEventListener('chart-save-full', saveFull)
-    return () => {
-      el.removeEventListener('chart-tools-toggle', toggleTools)
-      el.removeEventListener('chart-save-image', save)
-      el.removeEventListener('chart-save-full', saveFull)
-    }
-  }, [nativeModebar])
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {

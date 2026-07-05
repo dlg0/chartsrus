@@ -10,29 +10,23 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@observablehq/plot": "latest",
-    "@visx/axis": "latest",
-    "@visx/curve": "latest",
-    "@visx/grid": "latest",
-    "@visx/group": "latest",
-    "@visx/scale": "latest",
-    "@visx/shape": "latest",
-    "@vitejs/plugin-react": "latest",
-    "d3": "latest",
-    "html-to-image": "^1.11.13",
-    "plotly.js-basic-dist-min": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "recharts": "latest"
+    "@visx/axis": "4.0.0",
+    "@visx/curve": "4.0.0",
+    "@visx/grid": "4.0.0",
+    "@visx/group": "4.0.0",
+    "@visx/scale": "4.0.0",
+    "@visx/shape": "4.0.0",
+    "@vitejs/plugin-react": "6.0.3",
+    "html-to-image": "1.11.13",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
   },
   "devDependencies": {
-    "@types/d3": "latest",
-    "@types/node": "latest",
-    "@types/plotly.js": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "typescript": "latest",
-    "vite": "latest",
-    "vitest": "latest"
+    "@types/node": "26.0.1",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "typescript": "6.0.3",
+    "vite": "8.1.0",
+    "vitest": "4.1.9"
   }
 }

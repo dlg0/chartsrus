@@ -18,9 +18,7 @@ button { cursor: pointer; }
 .chart-row-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
 .chart-row-heading h2 { margin: 0; font-size: 15px; }
 .chart-row-heading p { margin: 0; color: #52606d; font-size: 12px; text-align: right; }
-.cards { display: grid; grid-template-columns: repeat(var(--chart-columns, 1), minmax(0, 1fr)); gap: 10px; }
-.chart-column { min-width: 0; display: grid; gap: 4px; }
-.chart-column h3 { margin: 0; padding: 0 2px; color: #344054; font-size: 12px; font-weight: 800; letter-spacing: 0.01em; }
+.cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .chart-card { container-type: inline-size; position: relative; background: white; border: 1px solid #d6dce6; border-radius: 8px; overflow: visible; box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04); }
 .chart-card-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: var(--header-height); padding: 3px 8px; border-bottom: 1px solid #e3e7ee; }
 .chart-card-header h2 { min-width: 0; margin: 0; overflow: hidden; color: #172033; font-size: 12px; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
@@ -41,13 +39,12 @@ button { cursor: pointer; }
 .isolation-banner { padding: 3px 8px; background: #e8f0ff; color: #143b7d; border-bottom: 1px solid #c8d8f6; font-size: 10px; font-weight: 700; }
 .chart-card-body { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 248px; }
 .plot-column { min-width: 0; position: relative; }
-.plot-host, .recharts-wrap, .observable-wrap, .plotly-wrap { width: 100%; height: 248px; }
+.plot-host { width: 100%; height: 248px; }
 .hover-tooltip { position: absolute; z-index: 12; pointer-events: none; display: inline-flex; align-items: center; gap: 5px; padding: 2px 6px; background: #ffffff; border: 1px solid #cbd3df; border-radius: 4px; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12); color: #172033; font-size: 10px; white-space: nowrap; }
-.plotly-wrap .modebar { background: transparent; }
 .chart-svg { display: block; }
 .chart-card:fullscreen { display: flex; flex-direction: column; width: 100vw; height: 100vh; border-radius: 0; overflow: auto; }
 .chart-card:fullscreen .chart-card-body { flex: 1 1 auto; min-height: 0; }
-.chart-card:fullscreen .plot-host, .chart-card:fullscreen .recharts-wrap, .chart-card:fullscreen .observable-wrap, .chart-card:fullscreen .plotly-wrap { height: 100%; }
+.chart-card:fullscreen .plot-host { height: 100%; }
 .cursor-line { stroke: #111827; stroke-width: 1; stroke-dasharray: 3 3; pointer-events: none; }
 .inspector { border-top: 1px solid #e3e7ee; padding: 4px 6px; min-width: 0; background: #fbfcfe; }
 .chart-card > .inspector:last-child { border-bottom-left-radius: inherit; border-bottom-right-radius: inherit; }
@@ -91,16 +88,6 @@ button { cursor: pointer; }
 .drawer-list { display: grid; gap: 1px; max-height: min(420px, calc(100vh - 125px)); overflow: auto; }
 .drawer-row { grid-template-columns: 10px 1fr; gap: 6px; border-radius: 4px; padding: 3px; }
 .drawer-row small { display: block; color: #667085; }
-.comparison-panel { margin-top: 12px; background: white; border: 1px solid #d6dce6; border-radius: 8px; padding: 8px; overflow: auto; }
-.comparison-panel h2 { margin: 0 0 6px; font-size: 14px; }
-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-th, td { border-top: 1px solid #e3e7ee; padding: 5px 6px; text-align: left; }
-tbody th { font-weight: 500; color: #344054; }
-.verdict-row th, .verdict-row td { border-top: 2px solid #9aa4b2; border-bottom: 2px solid #9aa4b2; padding: 7px 6px; font-weight: 600; vertical-align: top; }
-.verdict-row th { color: #172033; }
-.verdict-yes { color: #166534; }
-.verdict-no { color: #9f1239; }
-td { color: #52606d; }
 @media (max-width: 760px) {
   .hero { grid-template-columns: 1fr; }
   .controls { justify-content: start; }
