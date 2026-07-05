@@ -1,7 +1,7 @@
 import * as Plot from '@observablehq/plot'
 import { useEffect, useMemo, useRef } from 'react'
 import { counterfactualCells, counterfactualExtent, counterfactualLineData, lineExtent, netLineData, targetLineData } from '../chartDerivedData'
-import { barXDomain, barXBands, visibleYearTicks } from '../chartScales'
+import { barXDomain, barXBands, formatYearTick, visibleYearTicks } from '../chartScales'
 import { colorForKey } from '../colors'
 import { densityTokens } from '../density'
 import { nearestYearFromX, seriesValueExtent, signedBands, stackBySign, stackCellAtPoint, stackExtent, yearsFromSpec } from '../stackUtils'
@@ -93,7 +93,7 @@ export function ObservablePlotStackChart({ spec, chartKind, chartType, viewMode,
         marginRight: tokens.chartMargin.right,
         marginBottom: tokens.chartMargin.bottom,
         marginLeft: tokens.chartMargin.left,
-        x: { type: 'linear', domain: [Math.min(...years), Math.max(...years)], ticks: xTicks, label: null },
+        x: { type: 'linear', domain: [Math.min(...years), Math.max(...years)], ticks: xTicks, tickFormat: formatYearTick, label: null },
         y: { domain: [lineDomain[0] * 1.08, lineDomain[1] * 1.08], label: null, ticks: 4 },
         style: { fontSize: `${tokens.axisFontSize}px`, overflow: 'visible' },
         marks: lineMarks,
@@ -111,7 +111,7 @@ export function ObservablePlotStackChart({ spec, chartKind, chartType, viewMode,
         marginRight: tokens.chartMargin.right,
         marginBottom: tokens.chartMargin.bottom,
         marginLeft: tokens.chartMargin.left,
-        x: { type: 'linear', domain: xDomain, ticks: xTicks, label: null },
+        x: { type: 'linear', domain: xDomain, ticks: xTicks, tickFormat: formatYearTick, label: null },
         y: { domain: [wedgeDomain[0] * 1.08, wedgeDomain[1] * 1.08], label: null, ticks: 4 },
         style: { fontSize: `${tokens.axisFontSize}px`, overflow: 'visible' },
         marks: [
@@ -193,7 +193,7 @@ export function ObservablePlotStackChart({ spec, chartKind, chartType, viewMode,
       marginRight: tokens.chartMargin.right,
       marginBottom: tokens.chartMargin.bottom,
       marginLeft: tokens.chartMargin.left,
-      x: { type: 'linear', domain: chartType === 'bar' ? barXDomain(years) : [Math.min(...years), Math.max(...years)], ticks: xTicks, label: null },
+      x: { type: 'linear', domain: chartType === 'bar' ? barXDomain(years) : [Math.min(...years), Math.max(...years)], ticks: xTicks, tickFormat: formatYearTick, label: null },
       y: { domain: [yMin * 1.05, yMax * 1.05], label: null, ticks: 4 },
       style: { fontSize: `${tokens.axisFontSize}px`, overflow: 'visible' },
       marks,

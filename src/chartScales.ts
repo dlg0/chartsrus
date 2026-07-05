@@ -5,6 +5,10 @@ export function visibleYearTicks(years: number[], width: number): number[] {
   return [...new Set([...years.filter((year) => required.has(year)), ...preferred])].sort((a, b) => a - b)
 }
 
+export function formatYearTick(year: { valueOf(): number }): string {
+  return String(year.valueOf())
+}
+
 export function readableYTicks(min: number, max: number): number[] {
   const span = max - min
   const step = Math.max(10, Math.ceil(span / 4 / 10) * 10)

@@ -6,7 +6,7 @@ import { AreaClosed, Bar, LinePath } from '@visx/shape'
 import { AxisBottom, AxisLeft } from '@visx/axis'
 import { useMemo } from 'react'
 import { counterfactualCells, counterfactualExtent, counterfactualLineData, lineExtent, netLineData, targetLineData } from '../chartDerivedData'
-import { barXDomain, barXBands, visibleYearTicks } from '../chartScales'
+import { barXDomain, barXBands, formatYearTick, visibleYearTicks } from '../chartScales'
 import { colorForKey } from '../colors'
 import { densityTokens } from '../density'
 import { nearestYearFromX, seriesValueExtent, signedBands, stackBySign, stackCellAtPoint, stackExtent, yearsFromSpec } from '../stackUtils'
@@ -104,7 +104,7 @@ export function VisxStackChart({ spec, chartKind, chartType, viewMode, showNetLi
           {selectedYear != null && <line className="cursor-line" x1={xScale(selectedYear)} x2={xScale(selectedYear)} y1={0} y2={innerHeight} />}
           {activeLineValue != null && <line className="cursor-line" x1={0} x2={innerWidth} y1={lineScale(activeLineValue)} y2={lineScale(activeLineValue)} />}
           <AxisLeft scale={lineScale} tickLabelProps={{ fontSize: tokens.axisFontSize, fill: '#52606d', dx: -3, dy: 3, textAnchor: 'end' }} stroke="#c6ccd6" tickStroke="#c6ccd6" numTicks={4} />
-          <AxisBottom top={innerHeight} scale={xScale} tickValues={xTicks} tickLabelProps={{ fontSize: tokens.axisFontSize, fill: '#52606d', dy: 2, textAnchor: 'middle' }} stroke="#c6ccd6" tickStroke="#c6ccd6" />
+          <AxisBottom top={innerHeight} scale={xScale} tickValues={xTicks} tickFormat={formatYearTick} tickLabelProps={{ fontSize: tokens.axisFontSize, fill: '#52606d', dy: 2, textAnchor: 'middle' }} stroke="#c6ccd6" tickStroke="#c6ccd6" />
           <Bar x={0} y={0} width={innerWidth} height={innerHeight} fill="transparent" onPointerMove={(event) => setLineFocus(event.clientX, event.clientY, event.currentTarget.ownerSVGElement!.getBoundingClientRect())} onPointerLeave={() => setInspection((state) => ({ ...state, activeSeriesKey: null }))} onClick={() => setInspection((state) => ({ ...state, pinnedYear: state.pinnedYear === state.activeYear ? null : state.activeYear }))} />
         </Group>
       </svg>
@@ -176,7 +176,7 @@ export function VisxStackChart({ spec, chartKind, chartType, viewMode, showNetLi
           {selectedYear != null && <line className="cursor-line" x1={xScale(selectedYear)} x2={xScale(selectedYear)} y1={0} y2={innerHeight} />}
           {activeWedgeCell && <line className="cursor-line" x1={0} x2={innerWidth} y1={wedgeScale((activeWedgeCell.y0 + activeWedgeCell.y1) / 2)} y2={wedgeScale((activeWedgeCell.y0 + activeWedgeCell.y1) / 2)} />}
           <AxisLeft scale={wedgeScale} tickLabelProps={{ fontSize: tokens.axisFontSize, fill: '#52606d', dx: -3, dy: 3, textAnchor: 'end' }} stroke="#c6ccd6" tickStroke="#c6ccd6" numTicks={4} />
-          <AxisBottom top={innerHeight} scale={xScale} tickValues={xTicks} tickLabelProps={{ fontSize: tokens.axisFontSize, fill: '#52606d', dy: 2, textAnchor: 'middle' }} stroke="#c6ccd6" tickStroke="#c6ccd6" />
+          <AxisBottom top={innerHeight} scale={xScale} tickValues={xTicks} tickFormat={formatYearTick} tickLabelProps={{ fontSize: tokens.axisFontSize, fill: '#52606d', dy: 2, textAnchor: 'middle' }} stroke="#c6ccd6" tickStroke="#c6ccd6" />
           <Bar x={0} y={0} width={innerWidth} height={innerHeight} fill="transparent" onPointerMove={(event) => setWedgeFocus(event.clientX, event.clientY, event.currentTarget.ownerSVGElement!.getBoundingClientRect())} onPointerLeave={() => setInspection((state) => ({ ...state, activeSeriesKey: null }))} onClick={() => setInspection((state) => ({ ...state, pinnedYear: state.pinnedYear === state.activeYear ? null : state.activeYear }))} />
         </Group>
       </svg>
@@ -237,7 +237,7 @@ export function VisxStackChart({ spec, chartKind, chartType, viewMode, showNetLi
         {showTargets && <polyline points={targets.map((point) => `${xScale(point.year)},${yScale(point.target)}`).join(' ')} fill="none" stroke="#7c3aed" strokeWidth={1.4} strokeDasharray="5 4" pointerEvents="none" />}
         {showNetLine && <polyline points={net.map((point) => `${xScale(point.year)},${yScale(point.net)}`).join(' ')} fill="none" stroke="#111827" strokeWidth={1.5} pointerEvents="none" />}
         <AxisLeft scale={yScale} tickLabelProps={{ fontSize: tokens.axisFontSize, fill: '#52606d', dx: -3, dy: 3, textAnchor: 'end' }} stroke="#c6ccd6" tickStroke="#c6ccd6" numTicks={4} />
-        <AxisBottom top={innerHeight} scale={xScale} tickValues={xTicks} tickLabelProps={{ fontSize: tokens.axisFontSize, fill: '#52606d', dy: 2, textAnchor: 'middle' }} stroke="#c6ccd6" tickStroke="#c6ccd6" />
+        <AxisBottom top={innerHeight} scale={xScale} tickValues={xTicks} tickFormat={formatYearTick} tickLabelProps={{ fontSize: tokens.axisFontSize, fill: '#52606d', dy: 2, textAnchor: 'middle' }} stroke="#c6ccd6" tickStroke="#c6ccd6" />
         <Bar
           x={0}
           y={0}
